@@ -13,6 +13,12 @@
             <version>2.13</version>
         </dependency>
     </dependencies>
+    <properties>
+      <site></site>
+      <user></user>
+      <password></password>
+      <options></options>
+    </properties>
     <build>
 	    <plugins>
 	        <plugin>
@@ -23,11 +29,18 @@
 	                <target>1.6</target>
 	        </configuration>
 	     </plugin>
-	        <plugin>
+	     <plugin>
 	        <groupId>org.codehaus.mojo</groupId>
 	        <artifactId>exec-maven-plugin</artifactId>
+	        <version>1.2.1</version>
 	        <configuration>
 	             <mainClass>org.sakaiproject.util.archiver.Archiver</mainClass>
+	             <arguments>
+	                 <argument>${site}</argument>
+                     <argument>${user}</argument>
+                     <argument>${password}</argument>
+                     <argument>${options}</argument>
+	             </arguments>
 	        </configuration>
 	        </plugin>
 	    </plugins>

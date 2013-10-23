@@ -25,25 +25,42 @@ public class Archiver {
     private String site;
     private String user;
     private String password;
+    private String optionsFile;
     private Properties options;
 
-    public Archiver( String site, String user, String password) {
+    public Archiver( String site, String user, String password, String optionsFile) {
         setSite(site);
         setUser(user);
         setPassword(password);
+        setOptionsFile(optionsFile);
     }
 
     public static void main(String[] args) {
         try {
             // TODO: use arguments for these.
-            String site = "ADMNT2012_001_2012_2";
-            String user = "nm2636";
-            String password = "n60Ca4ls";
-            Archiver archiver = new Archiver(site, user, password);
+            String site = args[0];
+            if ( site == null ) {
+            	Archiver.usage("Missing site argument");
+            }
+            String user = args[1];
+            if ( user == null ) {
+            	Archiver.usage("Missing user argument");
+            }
+            String password = args[2];
+            if ( password == null ) {
+            	Archiver.usage("Missing password argument");
+            }
+            Archiver archiver = new Archiver(site, user, password, args[3]);
+
             archiver.execute();
         } catch ( Exception e ) {
             e.printStackTrace();
         }
+    }
+
+    static public void usage( String msg ) {
+    	System.err.println(msg);
+    	System.err.println("Usage:  site user password (optional properties-file)");
     }
     /**
      * Main method which creates the archive.
@@ -51,7 +68,7 @@ public class Archiver {
      * @throws Exception
      */
     public void execute() throws Exception {
-    	loadOptions( null );
+    	loadOptions( getOptionsFile() );
         initWebClient();
         if ( ! login(getSite(), getUser(), getPassword()) ) {
         	msg("Error:  Could not log in or did not get to required site.");
@@ -192,6 +209,14 @@ public class Archiver {
 	}
 	public String getOption( String key ) {
 		return getOptions().getProperty(key).trim();
+	}
+
+	public String getOptionsFile() {
+		return optionsFile;
+	}
+
+	public void setOptionsFile(String optionsFile) {
+		this.optionsFile = optionsFile;
 	}
 
 }
