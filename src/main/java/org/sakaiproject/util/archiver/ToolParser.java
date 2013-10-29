@@ -1,7 +1,9 @@
 package org.sakaiproject.util.archiver;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.MalformedURLException;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
@@ -13,6 +15,8 @@ public abstract class ToolParser {
 	private Archiver archiver;
 	private String subdirectory;
 	private String mainPage;
+	private HtmlPage currentPage;
+	private HtmlPage parentPage;
 
 	public ToolParser() {
 		initialize();
@@ -28,6 +32,7 @@ public abstract class ToolParser {
 
 	public void parse( Archiver archiver ) throws Exception {
 		setArchiver(archiver);
+		archiver.msg("Parsing tool:  " + getToolName());
 		parse();
 	}
 	public void loadMainPage() throws FailingHttpStatusCodeException, MalformedURLException, IOException {
@@ -35,35 +40,66 @@ public abstract class ToolParser {
 			return;
 		}
 		HtmlPage page = loadPage(getMainURL());
+		setCurrentPage(page);
 		PageInfo info = new PageInfo(page);
 		info.setTool(getToolName());
 		info.setLocalURL("file://" + getPath() + "index.html");
 		getArchiver().getSitePages().addLeaf(info);
-		savePage(page, "index.htm");
+		savePage(page, getSubdirectory() + "/index.htm");
 	}
 	public void parse() throws Exception {
 		loadMainPage();
 	}
-    public void savePage(HtmlPage page, String name) throws IOException {
-
-    	String fullName = getPath() + name;
-        File file = new File(fullName );
-        file.getParentFile().mkdirs();
-        new JavaScriptXMLSerializer().save(page, file);
-        getArchiver().msg("Saved '" + page.getTitleText() + "' in " + fullName);
+	/**
+	 * Save a page and associated information.
+	 *
+	 * @param page
+	 * @param filepath The path to the file to save the html in relative to the archive base.
+	 * @throws IOException
+	 */
+    public void savePage(HtmlPage page, String filepath) throws IOException {
+		PageSaver pageSaver = new PageSaver(getArchiver());
+		pageSaver.save(page, filepath);
+        getArchiver().msg("Saved '" + page.getTitleText() + "' in " + filepath);
     }
 
+    /**
+     * Get the full system path to the directory the tool info will be stored.
+     *
+     * @return The path based on archive.dir.base option, the site names and tool subdirectory.  Will
+     *         end with /
+     */
     public String getPath() {
     	return getArchiver().getOption("archive.dir.base") + getArchiver().getSite() + "/" + getSubdirectory();
     }
 
+    /**
+     * Get the short tool name for the current parser.  Tool names should only contain [a-z0-9_]
+     *
+     * @return The tool name.
+     */
     abstract public String getToolName();
 
 	public HtmlPage loadPage(String url) throws FailingHttpStatusCodeException, MalformedURLException, IOException {
 		HtmlPage page = getArchiver().getWebClient().getPage(url);
 		return page;
 	}
-
+	/**
+	 * Save raw content to a file.
+	 *
+	 * @param content The content to write out.
+	 * @param path The file path relative to the archive base path.
+	 */
+	public void saveContentString(String content, String path ) throws FileNotFoundException {
+		File file = new File(getArchiver().getBasePath() + path );
+		file.getParentFile().mkdirs();
+		PrintWriter out = new PrintWriter(file);
+		try {
+			out.print(content);
+		} finally {
+			out.close();
+		}
+	}
 	public String getMainURL() {
 		return mainURL;
 	}
@@ -81,7 +117,7 @@ public abstract class ToolParser {
 	}
 
 	public String getSubdirectory() {
-		if ( ! subdirectory.endsWith("/") ) {
+		if ( ! subdirectory.equals("") && ! subdirectory.endsWith("/") ) {
 			subdirectory += "/";
 		}
 		return subdirectory;
@@ -97,6 +133,22 @@ public abstract class ToolParser {
 
 	public void setMainPage(String mainPage) {
 		this.mainPage = mainPage;
+	}
+
+	public HtmlPage getCurrentPage() {
+		return currentPage;
+	}
+
+	public void setCurrentPage(HtmlPage currentPage) {
+		this.currentPage = currentPage;
+	}
+
+	public HtmlPage getParentPage() {
+		return parentPage;
+	}
+
+	public void setParentPage(HtmlPage parentPage) {
+		this.parentPage = parentPage;
 	}
 
 }

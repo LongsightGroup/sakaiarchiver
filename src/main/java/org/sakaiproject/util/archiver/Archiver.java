@@ -2,7 +2,10 @@ package org.sakaiproject.util.archiver;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -12,6 +15,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.sakaiproject.util.archiver.parsers.AssignmentsParser;
 import org.sakaiproject.util.archiver.parsers.ForumsParser;
 import org.sakaiproject.util.archiver.parsers.HomeParser;
@@ -49,6 +53,7 @@ public class Archiver {
     private WebClient webClient;
     private PageTree<PageInfo> sitePages;
     private List<ToolParser> siteTools;
+    private List<String> savedPages;
 
 	/**
 	 * Constructor with all the command line options.
@@ -122,6 +127,7 @@ public class Archiver {
     		return;
     	}
         initWebClient();
+        copyResources();
     }
     /**
      * Main method which creates the archive.
@@ -238,7 +244,7 @@ public class Archiver {
     public void locateTools(){
     	HtmlPage page = getHomePage();
     	Map<String,String> classMap = getClassToTool();
-    	getSiteTools().add(getToolToParser().get("skin"));
+//    	getSiteTools().add(getToolToParser().get("skin"));
     	ToolParser parser = getToolToParser().get("home");
     	parser.setMainURL(getHomePage().getUrl().toString());
     	getSiteTools().add(parser);
@@ -287,11 +293,37 @@ public class Archiver {
         System.out.println(msg);
     }
     /**
+     * Copy resource files needed by the offline version.
+     *
+     * @throws IOException
+     */
+    public void copyResources() throws IOException {
+    	File base = new File(getBasePath());
+    	File css = new File(base,"sakai-offline.css");
+    	File js = new File(base, "sakai-offline.js");
+
+    	OutputStream out = new FileOutputStream(css);
+    	InputStream in = Archiver.class.getClassLoader().getResourceAsStream("sakai-offline.css");
+    	try {
+    		IOUtils.copy(in, out);
+    	} finally {
+    		out.close();
+    	}
+    	out = new FileOutputStream(js);
+    	in = Archiver.class.getClassLoader().getResourceAsStream("sakai-offline.js");
+    	try {
+    		IOUtils.copy(in, out);
+    	} finally {
+    		out.close();
+    	}
+    }
+    /**
      * Save a file and associated files.
      *
      * @param name
      * @throws IOException
      */
+/*
     public void savePage(String name) throws IOException {
 
     	String fullName = getOption("archive.dir.base") + getSite() + "/" + name;
@@ -300,7 +332,6 @@ public class Archiver {
         new JavaScriptXMLSerializer().save(getHomePage(), file);
         msg("Saved name in " + fullName);
     }
-/*
     public void dumpAnchors() {
         List<HtmlAnchor> anchors = getPage().getAnchors();
         Iterator<HtmlAnchor> iAnchors = anchors.iterator();
@@ -313,6 +344,19 @@ public class Archiver {
         }
     }
 */
+    /**
+     * Gets the absolute base path to the site archive.
+     *
+     * @return The base path ending with a /
+     */
+    public String getBasePath() {
+    	String path = getOption("archive.dir.base");
+    	if ( ! path.endsWith("/") ) {
+    		path += "/";
+    	}
+    	path += getSite() + "/";
+    	return path;
+    }
     public HtmlPage getHomePage() {
         return homePage;
     }
@@ -413,6 +457,15 @@ public class Archiver {
 	}
 	public void setSiteTools(List<ToolParser> siteTools) {
 		this.siteTools = siteTools;
+	}
+	public List<String> getSavedPages() {
+		if ( savedPages == null ) {
+			savedPages = new ArrayList<String>();
+		}
+		return savedPages;
+	}
+	public void setSavedPages(List<String> savedPages) {
+		this.savedPages = savedPages;
 	}
 
 }
