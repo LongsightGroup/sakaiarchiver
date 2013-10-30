@@ -9,7 +9,6 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -47,6 +46,7 @@ public class PageSaver {
 
 	private Archiver archiver;
 	private HtmlPage page;
+	private ToolParser parser;
 
 	public PageSaver(Archiver archiver) {
 		setArchiver(archiver);
@@ -65,9 +65,9 @@ public class PageSaver {
 		File pageFile = new File(base, filepath);
 		pageFile.getParentFile().mkdirs();
 		String relativeRoot = base.toURI().relativize(pageFile.toURI()).getPath();
-		relativeRoot = "..";  //TODO: Calculate this
+		relativeRoot = "../";  //TODO: Calculate this
 
-		List<String> cssFiles = parseCss( page );
+		Map<String,String> cssFiles = parseCss( page );
 		Map<String,String> jsFiles = parseJavascript(page);
 		Map<String,String> imgFiles = parseImages( page, filepath );
 		Map<String,String> files = parseFiles( page, filepath );
@@ -75,8 +75,8 @@ public class PageSaver {
 
 		String html = page.getWebResponse().getContentAsString();
 		// Update css links
-		for( String cssFile: cssFiles ) {
-			String pattern = HREF_REGEX + cssFile.replaceAll("[?]", "[?]") + "\"";
+		for( String cssFile: cssFiles.keySet() ) {
+			String pattern = HREF_REGEX + cssFiles.get(cssFile).replaceAll("[?]", "[?]") + "\"";
 			String replace = "href=\"" + relativeRoot + cssFile + "\"";
 			html = html.replaceAll(pattern, replace);
 		}
@@ -86,7 +86,7 @@ public class PageSaver {
 			String pattern = SRC_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
 			String replace;
 			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
-				replace = "src=\"" + relativeRoot + '/' + newPath + "\"";
+				replace = "src=\"" + relativeRoot + newPath + "\"";
 			}
 			else {
 				replace = "src=\"" + newPath + "\"";
@@ -99,7 +99,7 @@ public class PageSaver {
 			String pattern = SRC_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
 			String replace;
 			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
-				replace = "src=\"" + relativeRoot + '/' + newPath + "\"";
+				replace = "src=\"" + relativeRoot + newPath + "\"";
 			}
 			else {
 				replace = "src=\"" + newPath + "\"";
@@ -112,7 +112,7 @@ public class PageSaver {
 			String pattern = HREF_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
 			String replace;
 			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
-				replace = "href=\"" + relativeRoot + '/' + newPath + "\"";
+				replace = "href=\"" + relativeRoot + newPath + "\"";
 			}
 			else {
 				replace = "href=\"" + newPath + "\"";
@@ -131,13 +131,18 @@ public class PageSaver {
 		String replace = "";
 		if ( ! html.contains("library/js/jquery.js")) {
 			replace =
-                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\">";
+                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\"></script>";
 		}
 		replace +=
 		  "<script type=\"text/javascript\" language=\"JavaScript\" src=\"../sakai-offline.js\"></script>" +
 		  "<link href=\"../sakai-offline.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\">" +
 	      "</body>";
 		html = html.replaceAll("</body>",replace);
+
+		ToolParser parser = getParser();
+		if ( parser != null ) {
+		    html = parser.modifySavedHtml(page, html);
+		}
 
 		saveContentString(html, filepath);
 	}
@@ -146,11 +151,12 @@ public class PageSaver {
 		File base = new File(getArchiver().getBasePath());
 		File pageRoot = new File(base, filepath).getParentFile();
 
-		List<HtmlAnchor> anchors = getPage().getAnchors();
+		List<HtmlAnchor> anchors = page.getAnchors();
         for( HtmlAnchor anchor: anchors ) {
-        	String href = anchor.getHrefAttribute();
-        	// Skip javascript and host only site links (e.g. sakaiproject.org)
-        	if ( href.startsWith("javascript:")  || href.matches("http://[^/]+")) {
+        	String href = anchor.getHrefAttribute().trim();
+        	// Skip javascript, host only site links (e.g. sakaiproject.org), and anchor links
+        	if ( href.equals("") || href.startsWith("javascript:")  ||
+        		href.matches("http[s]?://[^/]+") || href.startsWith("#") ) {
         		continue;
         	}
             String localPath = href.split("\\?")[0];  // Some images have query parameters.
@@ -167,12 +173,6 @@ public class PageSaver {
             }
         	String ext = FilenameUtils.getExtension(localPath);
         	// cfm is Columbia specific link.
-        	if ( ext.equals("") || ext.equals("cfm")) {
-        		continue;
-        	}
-        	if ( ! ext.matches("htm[l]?") ) {
-        		//TODO: should any other links be considered files?
-        	}
             if ( href.contains("/access/content")) {
                 files.put(localPath, href);
                 if ( ! getArchiver().getSavedPages().contains(localPath)) {
@@ -185,19 +185,43 @@ public class PageSaver {
 	               		file = new File(base, localPath);
 	               	}
 	               	file.getParentFile().mkdirs();
-	               	msg("Saving file (please wait): " + href + "  localpath=" + file.getAbsolutePath());
-	               	if ( Archiver.DEBUG_SKIP_FILES ) {
-  	               	    InputStream in = anchor.openLinkInNewWindow().getWebResponse().getContentAsStream();
-	            	    OutputStream out = new FileOutputStream(file);
-	            	    try {
-	            		    IOUtils.copyLarge(in, out);
-	            	    } finally {
-	            		    out.close();
-	            	    }
+	               	msg("Saving file (please wait): " + href + "  localpath=" +
+	               		file.getAbsolutePath(), Archiver.NORMAL);
+	               	if ( ! Archiver.DEBUG_SKIP_FILES ) {
+if ( false && ext.equals("zip") ) {
+	continue;
+}
+	               		Page filePage = null;
+	               		try {
+	               			filePage = anchor.openLinkInNewWindow();
+	               		} catch ( ClassCastException e ) {
+	               			msg("Could not download file (does not exist?): " + href,
+	               				Archiver.WARNING);
+	               		}
+	               		if ( filePage != null ) {
+		               	    InputStream in = filePage.getWebResponse().getContentAsStream();
+		            	    OutputStream out = new FileOutputStream(file);
+		            	    try {
+		            		    long size = IOUtils.copyLarge(in, out);
+		            		    msg("File size: " + size, Archiver.NORMAL);
+		            	    } finally {
+		            		    out.close();
+		            	    }
+	               		}
+	               	}
+	               	else {
+	               		msg("DEBUG_SKIP_FILE is true, skipping file download", Archiver.WARNING);
 	               	}
 	            	getArchiver().getSavedPages().add(localPath);
                 }
             }
+        	if ( ext.equals("") || ext.equals("cfm")) {
+        		continue;
+        	}
+        	if ( ! ext.matches("htm[l]?") ) {
+        		//TODO: should any other links be considered files?
+        	}
+
         }
 		return files;
 	}
@@ -223,8 +247,10 @@ public class PageSaver {
 			iframes.put(name, path);
 			String pagePath = FilenameUtils.getPath(filepath);
             if ( ! getArchiver().getSavedPages().contains(path)) {
-            	msg("Saving iframe: " + pagePath + name);
-            	save(framePage, pagePath + name );
+            	msg("Saving iframe: " + pagePath + name + "(" +
+                    framePage.getTitleText()+")", Archiver.NORMAL);
+            	PageSaver saver = new PageSaver(getArchiver());
+            	saver.save(framePage, pagePath + name );
             	getArchiver().getSavedPages().add(path);
             }
 		}
@@ -264,6 +290,8 @@ public class PageSaver {
             }
             imgFiles.put(localPath, path);
             if ( ! getArchiver().getSavedPages().contains(localPath)) {
+				msg("Saving image: src path: " + path + "  local path: " +
+                    localPath, Archiver.VERBOSE);
             	File imageFile;
             	if ( relative ) {
             		imageFile = new File(pageRoot, localPath );
@@ -274,10 +302,6 @@ public class PageSaver {
             	imageFile.getParentFile().mkdirs();
             	image.saveAs(imageFile);
 	            getArchiver().getSavedPages().add(localPath);
-	            if ( Archiver.isDebug(1)) {
-					msg("image src path: " + path);
-					msg("image local path: " + localPath);
-	            }
             }
         }
 		return imgFiles;
@@ -289,23 +313,28 @@ public class PageSaver {
 	 * @return An array of CSS hrefs to replace.
 	 * @throws IOException
 	 */
-	public List<String> parseCss( HtmlPage page ) throws IOException {
-		List<String> cssFiles = new ArrayList<String>();
+	public Map<String,String> parseCss( HtmlPage page ) throws IOException {
+		Map<String,String> cssFiles = new HashMap<String,String>();
 		List<?> links = ParsingUtils.findElementWithType(page, "link", "text/css");
         Iterator<?> it = links.iterator();
         while (it.hasNext()) {
             HtmlLink link = (HtmlLink) it.next();
 
             String path = link.getAttribute("href").trim();
-            if (path == null || path.equals("")) continue;
+            if (path == null || path.equals("")) {
+            	continue;
+            }
             URL cssUrl = page.getFullyQualifiedUrl(path);
 
-            cssFiles.add(path);
-
-            if ( path.startsWith("/")) {
-            	path = path.substring(1);
+            String localPath = path;
+            if ( localPath.startsWith("/")) {
+            	localPath = localPath.substring(1);
             }
+            cssFiles.put(localPath, path);
             if ( ! getArchiver().getSavedPages().contains(path)) {
+				msg("Saving css file: src path: " + path + "  local path: " +
+                    localPath, Archiver.VERBOSE);
+
 	            WebResponse resp = link.getWebResponse(true);
 	            String css = resp.getContentAsString();
 	            saveContentString(css, path);
@@ -330,7 +359,7 @@ public class PageSaver {
 			String cssImage = m.group(1).trim();
 
 			if ( cssImage.startsWith("data:") ||
-			     getArchiver().getSavedPages().contains(cssImage) ) {
+			    getArchiver().getSavedPages().contains(cssImage) ) {
 				continue;
 			}
 			URL imgUrl;
@@ -341,13 +370,15 @@ public class PageSaver {
 				imgUrl = new URL(cssUrl, cssImage);
 			}
 			String localPath = imgUrl.getPath().substring(1);
+            msg("Saving css image:  src path: " + cssImage + "  local path: " +
+			    localPath, Archiver.VERBOSE);
 			File localFile = new File(getArchiver().getBasePath() + localPath);
 			localFile.getParentFile().mkdirs();
             try {
             	downloadImage(imgUrl, localFile );
             } catch ( IOException e ) {
             	// Some images may not exist.
-            	msg("Could not download CSS image:  " + imgUrl.toString());
+            	msg("Could not download CSS image:  " + imgUrl.toString(), Archiver.WARNING);
             }
             getArchiver().getSavedPages().add(cssImage);
 		}
@@ -378,10 +409,8 @@ public class PageSaver {
             	localPath = path.substring(1);
             }
             jsFiles.put(localPath, path);
-            if ( Archiver.isDebug(1)) {
-            	msg("js orgpath: " + path);
-            	msg("js localPath: " + localPath);
-            }
+           	msg("Saving Javascript:  src path: " + path + "  localPath: " +
+                localPath, Archiver.VERBOSE);
             if ( ! getArchiver().getSavedPages().contains(path)) {
             	Page jsPage = getArchiver().getWebClient().getPage(url);
 	            saveContentString(jsPage.getWebResponse().getContentAsString(), localPath);
@@ -436,8 +465,8 @@ public class PageSaver {
 	 *
 	 * @param msg
 	 */
-	public void msg( String msg ) {
-		getArchiver().msg(msg);
+	public void msg( String msg, int level ) {
+		getArchiver().msg(msg, level);
 	}
 	public Archiver getArchiver() {
 		return archiver;
@@ -451,4 +480,14 @@ public class PageSaver {
 	public void setPage(HtmlPage page) {
 		this.page = page;
 	}
+	/**
+	 * Get the tool parser object.
+	 * @return The tool parser object.. may be null.
+	 */
+    public ToolParser getParser() {
+        return parser;
+    }
+    public void setParser(ToolParser parser) {
+        this.parser = parser;
+    }
 }

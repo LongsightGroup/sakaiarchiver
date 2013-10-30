@@ -32,7 +32,7 @@ public abstract class ToolParser {
 
 	public void parse( Archiver archiver ) throws Exception {
 		setArchiver(archiver);
-		msg("Parsing tool:  " + getToolName());
+		msg("Parsing tool:  " + getToolName(), Archiver.NORMAL);
 		parse();
 	}
 	public void loadMainPage() throws FailingHttpStatusCodeException, MalformedURLException, IOException {
@@ -60,7 +60,7 @@ public abstract class ToolParser {
     public void savePage(HtmlPage page, String filepath) throws IOException {
 		PageSaver pageSaver = new PageSaver(getArchiver());
 		pageSaver.save(page, filepath);
-        msg("Saved '" + page.getTitleText() + "' in " + filepath);
+        msg("Saved '" + page.getTitleText() + "' in " + filepath, Archiver.NORMAL);
     }
 
     /**
@@ -100,12 +100,23 @@ public abstract class ToolParser {
 		}
 	}
 	/**
+	 * This method is called by PageSave after it has modified the HTML and
+	 * before it is written to the file.
+	 *
+	 * @param page
+	 * @param html
+	 * @return
+	 */
+	public String modifySavedHtml( HtmlPage page, String html ) {
+	    return html;
+	}
+	/**
 	 * Output a message via Archiver's msg method.
 	 *
 	 * @param msg
 	 */
-	public void msg( String msg ) {
-		getArchiver().msg(msg);
+	public void msg( String msg, int level ) {
+		getArchiver().msg(msg, level);
 	}
 	public String getMainURL() {
 		return mainURL;

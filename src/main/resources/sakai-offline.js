@@ -2,8 +2,9 @@
 if (typeof jQuery != 'undefined') {
   (function($) {
     $(document).ready(function() {
+      
       // Disable all links
-      $('a').click(function() {
+      $('a').removeAttr('onclick').click(function() {
         var href = $(this).attr("href");
         // Allow file urls
         if ((/^[.][.][/]access[/]content/).test(href) ) {
@@ -12,6 +13,14 @@ if (typeof jQuery != 'undefined') {
         alert("Not available in offline mode");
         return false;
       });
+      // Disable all form submits.
+      $( 'form' ).submit(function( event ) {
+        alert("Not available in offline mode");
+        event.preventDefault();
+      });
+      
+// Enable things that work offline.      
+      
       // Home link
       $('a.icon-sakai-iframe-site').unbind('click').click(function() {
           document.location = '../home/index.htm';
@@ -49,7 +58,10 @@ if (typeof jQuery != 'undefined') {
         return true;
       });
 */
-      $('#mastLogin').html('This is an offline archive of this course.  Only links in Red will work.');
+      // Enable links marked with offline-link class.
+      $("a.offline-link").unbind('click');
+
+      $('#mastLogin').html('This is an offline archive of this course.  Only links in Red will work. NOTE: Works best in Firefox due to Javascript sandbox rules.');
     });
   })(jQuery);
 }

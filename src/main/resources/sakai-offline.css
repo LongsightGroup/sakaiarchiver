@@ -19,6 +19,8 @@
 #toolMenu li a.icon-sakai-site-roster:link,
 #toolMenu li a.icon-sakai-site-roster,
 #toolMenu li a.icon-sakai-syllabus:link,
-#toolMenu li a.icon-sakai-syllabus {
+#toolMenu li a.icon-sakai-syllabus,
+a.offline-link,
+a.offline-link:link {
 	color: red;
 }

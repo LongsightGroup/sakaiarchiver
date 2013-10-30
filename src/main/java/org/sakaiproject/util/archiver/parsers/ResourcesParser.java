@@ -1,7 +1,10 @@
 package org.sakaiproject.util.archiver.parsers;
 
+import java.net.URL;
 import java.util.List;
 
+import org.apache.commons.io.FilenameUtils;
+import org.sakaiproject.util.archiver.Archiver;
 import org.sakaiproject.util.archiver.ParsingUtils;
 import org.sakaiproject.util.archiver.ToolParser;
 
@@ -30,15 +33,20 @@ public class ResourcesParser extends ToolParser {
 		setParentPage(page);
 		List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
 		String path = ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();
-getArchiver().msg("resource iframe=" + path);
         HtmlPage resources = getArchiver().getWebClient().getPage(path);
+
+        // Loop thru page invoking folder expansion ajax links until all folders opened.
         List<?> folders = resources.getByXPath("//a[@title='Open this folder']");
-getArchiver().msg("Folders=" + folders.size());
         while ( folders.size() > 0 ) {
         	HtmlAnchor link = (HtmlAnchor) folders.get(0);
         	resources = link.click();
         	folders = resources.getByXPath("//a[@title='Open this folder']");
         }
-        savePage(resources, "resources/test.html");
+
+        // Overwrite the default frame with the "opened" version.
+		String name = getSubdirectory() + FilenameUtils.getName(new URL(path).getPath());
+       	msg("Updating resource iframe: " + name + "(" +
+                resources.getTitleText()+")", Archiver.NORMAL);
+       	savePage(resources, name );
 	}
 }

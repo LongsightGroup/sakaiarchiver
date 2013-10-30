@@ -36,10 +36,14 @@ import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 
 public class Archiver {
 
-	public static boolean DEBUG = true;
-	public static final int DEBUG_LEVEL = 1;
-	public static final String DEBUG_TOOL = "resources";
-	public static final boolean DEBUG_SKIP_FILES = true;
+    // Message and debug flags.
+	public static final int ERROR = -2;
+	public static final int WARNING = -1;
+	public static final int NORMAL = 0;
+	public static final int DEBUG = 1;
+	public static final int VERBOSE = 2;
+	public static final String DEBUG_TOOL = null; //"assignments";
+	public static final boolean DEBUG_SKIP_FILES = false;
 
     // Input arguments and options
 	private String site;
@@ -59,6 +63,7 @@ public class Archiver {
     private PageTree<PageInfo> sitePages;
     private List<ToolParser> siteTools;
     private List<String> savedPages;
+    private int outputVerbosity = DEBUG;
 
 	/**
 	 * Constructor with all the command line options.
@@ -128,7 +133,7 @@ public class Archiver {
     	initializeToolParser();
     	loadOptions( getOptionsFile() );
     	if ( ! initArchiveBasePath() ) {
-    		msg("Could not initialize the archive base location: " + getArchiveBasePath());
+    		msg("Could not initialize the archive base location: " + getArchiveBasePath(), ERROR);
     		return;
     	}
         initWebClient();
@@ -141,18 +146,17 @@ public class Archiver {
      */
     public void execute() throws Exception {
         if ( ! login(getSite(), getUser(), getPassword()) ) {
-        	msg("Error:  Could not log in or did not get to required site.");
+        	msg("Error:  Could not log in or did not get to required site.", ERROR);
         	return;
         }
+        msg("Successfully logged in to site.", NORMAL);
         PageInfo pInfo = new PageInfo( getHomePage());
     	setSitePages( new PageTree<PageInfo>( pInfo ) );
         locateTools();
         for( ToolParser tool: getSiteTools()) {
         	tool.parse(this);
         }
-        System.out.println("Tree = " + getSitePages().toString());
-
-//        savePage("home/home.html");
+//        System.out.println("Tree = " + getSitePages().toString());
     }
     /**
      * Clean up before exiting.
@@ -233,8 +237,6 @@ public class Archiver {
 
         page = button.click();
 
-        msg(page.getTitleText());
-
         URI thisLocation = page.getUrl().toURI();
         URI wantedLocation = new URI(fullSite);
         if (! thisLocation.equals(wantedLocation)) {
@@ -296,9 +298,12 @@ public class Archiver {
      * Output a message to stdout
      *
      * @param msg
+     * @param level The msg level (see Archiver flags)
      */
-    public void msg(String msg) {
-        System.out.println(msg);
+    public void msg(String msg, int level ) {
+    	if ( level <= getOutputVerbosity() ) {
+    		System.out.println(msg);
+    	}
     }
     /**
      * Copy resource files needed by the offline version.
@@ -324,9 +329,6 @@ public class Archiver {
     	} finally {
     		out.close();
     	}
-    }
-    public static boolean isDebug( int level ) {
-    	return DEBUG && DEBUG_LEVEL >= level;
     }
     /**
      * Save a file and associated files.
@@ -483,5 +485,11 @@ public class Archiver {
 	}
 	public void setSavedPages(List<String> savedPages) {
 		this.savedPages = savedPages;
+	}
+	public int getOutputVerbosity() {
+		return outputVerbosity;
+	}
+	public void setOutputVerbosity(int outputVerbosity) {
+		this.outputVerbosity = outputVerbosity;
 	}
 }

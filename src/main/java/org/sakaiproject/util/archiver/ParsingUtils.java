@@ -1,6 +1,8 @@
 package org.sakaiproject.util.archiver;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 /**
@@ -62,4 +64,22 @@ public class ParsingUtils {
 	public static final  List<?> findImageElements( HtmlPage page ) {
 		return page.getByXPath("//img[@src]");
 	}
+	/**
+	 * Parse query string into map
+	 *
+	 * @param query The query string
+	 * @return
+	 */
+	public static Map<String, String> getQueryMap(String query)
+	 {
+	     String[] params = query.split("&");
+	     Map<String, String> map = new HashMap<String, String>();
+	     for (String param : params)
+	     {
+	         String name = param.split("=")[0];
+	         String value = param.split("=")[1];
+	         map.put(name, value);
+	     }
+	     return map;
+	 }
 }
