@@ -2,9 +2,9 @@ package org.sakaiproject.util.archiver.parsers;
 
 import org.sakaiproject.util.archiver.ToolParser;
 
-public class SylabusParser extends ToolParser {
+public class SyllabusParser extends ToolParser {
 
-	public static final String TOOL_NAME = "sylabus";
+	public static final String TOOL_NAME = "syllabus";
 	@Override
 	public void initialize() {
 		setSubdirectory(getToolName());

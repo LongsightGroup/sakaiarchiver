@@ -2,7 +2,10 @@ package org.sakaiproject.util.archiver;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -19,6 +22,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 
 import com.gargoylesoftware.htmlunit.Page;
 import com.gargoylesoftware.htmlunit.WebClient;
@@ -26,6 +30,7 @@ import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.html.BaseFrameElement;
 import com.gargoylesoftware.htmlunit.html.FrameWindow;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlImage;
 import com.gargoylesoftware.htmlunit.html.HtmlLink;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -36,6 +41,9 @@ import com.gargoylesoftware.htmlunit.html.HtmlScript;
  * @author monroe
  */
 public class PageSaver {
+
+	public static final String SRC_REGEX = "src[\\s]*=[\\s]*\"";
+	public static final String HREF_REGEX = "href[\\s]*=[\\s]*\"";
 
 	private Archiver archiver;
 	private HtmlPage page;
@@ -60,27 +68,22 @@ public class PageSaver {
 		relativeRoot = "..";  //TODO: Calculate this
 
 		List<String> cssFiles = parseCss( page );
-		List<String> jsFiles = parseJavascript(page);
+		Map<String,String> jsFiles = parseJavascript(page);
 		Map<String,String> imgFiles = parseImages( page, filepath );
+		Map<String,String> files = parseFiles( page, filepath );
 		Map<String,String> iframeFiles = parseIframes(page, filepath);
 
 		String html = page.getWebResponse().getContentAsString();
 		// Update css links
 		for( String cssFile: cssFiles ) {
-			String pattern = "href=\"" + cssFile + "\"";
+			String pattern = HREF_REGEX + cssFile.replaceAll("[?]", "[?]") + "\"";
 			String replace = "href=\"" + relativeRoot + cssFile + "\"";
 			html = html.replaceAll(pattern, replace);
 		}
 		// Update javascript links
-		for( String jsFile: jsFiles ) {
-			String pattern = "src=\"" + jsFile +"\"";
-			String replace = "src=\"" + relativeRoot + jsFile + "\"";
-			html = html.replaceAll(pattern, replace);
-		}
-		// Update image links
-		for( String newPath: imgFiles.keySet() ) {
-			String orgPath = imgFiles.get(newPath);
-			String pattern = "src=\"" + orgPath +"\"";
+		for( String newPath: jsFiles.keySet() ) {
+			String orgPath = jsFiles.get(newPath);
+			String pattern = SRC_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
 			String replace;
 			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
 				replace = "src=\"" + relativeRoot + '/' + newPath + "\"";
@@ -90,21 +93,113 @@ public class PageSaver {
 			}
 			html = html.replaceAll(pattern, replace);
 		}
+		// Update image links
+		for( String newPath: imgFiles.keySet() ) {
+			String orgPath = imgFiles.get(newPath);
+			String pattern = SRC_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
+			String replace;
+			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
+				replace = "src=\"" + relativeRoot + '/' + newPath + "\"";
+			}
+			else {
+				replace = "src=\"" + newPath + "\"";
+			}
+			html = html.replaceAll(pattern, replace);
+		}
+		// Update file links
+		for( String newPath: files.keySet() ) {
+			String orgPath = files.get(newPath);
+			String pattern = HREF_REGEX + orgPath.replaceAll("[?]", "[?]") +"\"";
+			String replace;
+			if ( orgPath.startsWith("/") || orgPath.startsWith("http")) {
+				replace = "href=\"" + relativeRoot + '/' + newPath + "\"";
+			}
+			else {
+				replace = "href=\"" + newPath + "\"";
+			}
+			html = html.replaceAll(pattern, replace);
+		}
 		// Update iframe links
 		for( String iframeFile: iframeFiles.keySet() ) {
 			String frameURL = iframeFiles.get(iframeFile);
 			frameURL = frameURL.replaceAll("[?]", "[?]");
-			String pattern = "src=\"" + frameURL +"\"";
+			String pattern = SRC_REGEX + frameURL +"\"";
 			String replace = "src=\"" + iframeFile + "\"";
 			html = html.replaceAll(pattern, replace);
 		}
-		String replace =
+		// Add offline js and css
+		String replace = "";
+		if ( ! html.contains("library/js/jquery.js")) {
+			replace =
+                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\">";
+		}
+		replace +=
 		  "<script type=\"text/javascript\" language=\"JavaScript\" src=\"../sakai-offline.js\"></script>" +
 		  "<link href=\"../sakai-offline.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\">" +
 	      "</body>";
-		html = html.replaceAll("</head>",replace);
+		html = html.replaceAll("</body>",replace);
 
 		saveContentString(html, filepath);
+	}
+	public Map<String,String> parseFiles( HtmlPage page, String filepath ) throws IOException {
+		Map<String,String> files = new HashMap<String,String>();
+		File base = new File(getArchiver().getBasePath());
+		File pageRoot = new File(base, filepath).getParentFile();
+
+		List<HtmlAnchor> anchors = getPage().getAnchors();
+        for( HtmlAnchor anchor: anchors ) {
+        	String href = anchor.getHrefAttribute();
+        	// Skip javascript and host only site links (e.g. sakaiproject.org)
+        	if ( href.startsWith("javascript:")  || href.matches("http://[^/]+")) {
+        		continue;
+        	}
+            String localPath = href.split("\\?")[0];  // Some images have query parameters.
+            boolean relative = true;
+            // Check if path is full url
+            if ( href.startsWith("http")) {
+            	URL url = new URL(href);
+            	localPath = URLDecoder.decode(url.getPath(), "UTF-8");
+            	relative = false;
+            }
+            if ( localPath.startsWith("/")) {
+            	localPath = localPath.substring(1);
+            	relative = false;
+            }
+        	String ext = FilenameUtils.getExtension(localPath);
+        	// cfm is Columbia specific link.
+        	if ( ext.equals("") || ext.equals("cfm")) {
+        		continue;
+        	}
+        	if ( ! ext.matches("htm[l]?") ) {
+        		//TODO: should any other links be considered files?
+        	}
+            if ( href.contains("/access/content")) {
+                files.put(localPath, href);
+                if ( ! getArchiver().getSavedPages().contains(localPath)) {
+
+               	    File file;
+	               	if ( relative ) {
+	               		file = new File(pageRoot, localPath );
+	               	}
+	               	else {
+	               		file = new File(base, localPath);
+	               	}
+	               	file.getParentFile().mkdirs();
+	               	msg("Saving file (please wait): " + href + "  localpath=" + file.getAbsolutePath());
+	               	if ( Archiver.DEBUG_SKIP_FILES ) {
+  	               	    InputStream in = anchor.openLinkInNewWindow().getWebResponse().getContentAsStream();
+	            	    OutputStream out = new FileOutputStream(file);
+	            	    try {
+	            		    IOUtils.copyLarge(in, out);
+	            	    } finally {
+	            		    out.close();
+	            	    }
+	               	}
+	            	getArchiver().getSavedPages().add(localPath);
+                }
+            }
+        }
+		return files;
 	}
 	/**
 	 * Parse any iframes contained in page and download them to the same dir as the main page.
@@ -128,6 +223,7 @@ public class PageSaver {
 			iframes.put(name, path);
 			String pagePath = FilenameUtils.getPath(filepath);
             if ( ! getArchiver().getSavedPages().contains(path)) {
+            	msg("Saving iframe: " + pagePath + name);
             	save(framePage, pagePath + name );
             	getArchiver().getSavedPages().add(path);
             }
@@ -146,7 +242,6 @@ public class PageSaver {
 		Map<String,String> imgFiles = new HashMap<String,String>();
 		File base = new File(getArchiver().getBasePath());
 		File pageRoot = new File(base, filepath).getParentFile();
-
 		List<?> images = ParsingUtils.findImageElements(page);
         Iterator<?> it = images.iterator();
         while (it.hasNext()) {
@@ -154,7 +249,7 @@ public class PageSaver {
             String path = image.getAttribute("src").trim();
             if (path == null || path.equals("")) continue;
 
-            String localPath = path;
+            String localPath = path.split("\\?")[0];  // Some images have query parameters.
             boolean relative = true;
             // Check if path is full url
             if ( path.startsWith("http")) {
@@ -163,8 +258,8 @@ public class PageSaver {
             	relative = false;
             }
 
-            if ( path.startsWith("/")) {
-            	localPath = path.substring(1);
+            if ( localPath.startsWith("/")) {
+            	localPath = localPath.substring(1);
             	relative = false;
             }
             imgFiles.put(localPath, path);
@@ -179,6 +274,10 @@ public class PageSaver {
             	imageFile.getParentFile().mkdirs();
             	image.saveAs(imageFile);
 	            getArchiver().getSavedPages().add(localPath);
+	            if ( Archiver.isDebug(1)) {
+					msg("image src path: " + path);
+					msg("image local path: " + localPath);
+	            }
             }
         }
 		return imgFiles;
@@ -248,7 +347,7 @@ public class PageSaver {
             	downloadImage(imgUrl, localFile );
             } catch ( IOException e ) {
             	// Some images may not exist.
-            	getArchiver().msg("Could not download CSS image:  " + imgUrl.toString());
+            	msg("Could not download CSS image:  " + imgUrl.toString());
             }
             getArchiver().getSavedPages().add(cssImage);
 		}
@@ -258,11 +357,12 @@ public class PageSaver {
 	 * Parse the javascript includes and download them.
 	 *
 	 * @param page
-	 * @return An array of javascript paths to be replaced.
+	 * @return An Map with key as localpath and value as original path
 	 * @throws IOException
 	 */
-	public List<String> parseJavascript( HtmlPage page ) throws IOException {
-		List<String> jsFiles = new ArrayList<String>();
+	public Map<String,String> parseJavascript( HtmlPage page ) throws IOException {
+    	String localPath;
+		Map<String,String> jsFiles = new HashMap<String,String>();
 		List<?> scripts = ParsingUtils.findScriptElements(page);
         Iterator<?> it = scripts.iterator();
         while (it.hasNext()) {
@@ -272,14 +372,19 @@ public class PageSaver {
             // The //: seems to come from an ie initializer optional code.
             if (path == null || path.equals("") || path.equals("//:")) continue;
 
-            jsFiles.add(path);
         	URL url = page.getFullyQualifiedUrl(path);
+        	localPath = path.split("\\?")[0];
             if ( path.startsWith("/")) {
-            	path = path.substring(1);
+            	localPath = path.substring(1);
+            }
+            jsFiles.put(localPath, path);
+            if ( Archiver.isDebug(1)) {
+            	msg("js orgpath: " + path);
+            	msg("js localPath: " + localPath);
             }
             if ( ! getArchiver().getSavedPages().contains(path)) {
             	Page jsPage = getArchiver().getWebClient().getPage(url);
-	            saveContentString(jsPage.getWebResponse().getContentAsString(), path);
+	            saveContentString(jsPage.getWebResponse().getContentAsString(), localPath);
 	            getArchiver().getSavedPages().add(path);
             }
         }
@@ -326,6 +431,14 @@ public class PageSaver {
         imageReader.setInput(iis);
         ImageIO.write(imageReader.read(0), imageReader.getFormatName(), file);
     }
+	/**
+	 * Output a message via Archiver's msg method.
+	 *
+	 * @param msg
+	 */
+	public void msg( String msg ) {
+		getArchiver().msg(msg);
+	}
 	public Archiver getArchiver() {
 		return archiver;
 	}

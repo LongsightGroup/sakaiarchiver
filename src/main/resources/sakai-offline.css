@@ -1,4 +1,24 @@
 /* CSS added to archive pages */
+
 #mastLogin {
-	display: none;
+    background-color: darkred;
+    color: gold;
+    font-weight: bold;
+    text-align: left;
+    font-size: 120%;
+}
+
+#toolMenu li a.icon-sakai-iframe-site:link,
+#toolMenu li a.icon-sakai-iframe-site,
+#toolMenu li a.icon-sakai-assignment-grades:link,
+#toolMenu li a.icon-sakai-assignment-grades,
+#toolMenu li a.icon-sakai-samigo:link,
+#toolMenu li a.icon-sakai-samigo,
+#toolMenu li a.icon-sakai-resources:link,
+#toolMenu li a.icon-sakai-resources,
+#toolMenu li a.icon-sakai-site-roster:link,
+#toolMenu li a.icon-sakai-site-roster,
+#toolMenu li a.icon-sakai-syllabus:link,
+#toolMenu li a.icon-sakai-syllabus {
+	color: red;
 }

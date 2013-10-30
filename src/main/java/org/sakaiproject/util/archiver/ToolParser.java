@@ -32,7 +32,7 @@ public abstract class ToolParser {
 
 	public void parse( Archiver archiver ) throws Exception {
 		setArchiver(archiver);
-		archiver.msg("Parsing tool:  " + getToolName());
+		msg("Parsing tool:  " + getToolName());
 		parse();
 	}
 	public void loadMainPage() throws FailingHttpStatusCodeException, MalformedURLException, IOException {
@@ -45,10 +45,10 @@ public abstract class ToolParser {
 		info.setTool(getToolName());
 		info.setLocalURL("file://" + getPath() + "index.html");
 		getArchiver().getSitePages().addLeaf(info);
-		savePage(page, getSubdirectory() + "/index.htm");
 	}
 	public void parse() throws Exception {
 		loadMainPage();
+		savePage(getCurrentPage(), getSubdirectory() + "index.htm");
 	}
 	/**
 	 * Save a page and associated information.
@@ -60,7 +60,7 @@ public abstract class ToolParser {
     public void savePage(HtmlPage page, String filepath) throws IOException {
 		PageSaver pageSaver = new PageSaver(getArchiver());
 		pageSaver.save(page, filepath);
-        getArchiver().msg("Saved '" + page.getTitleText() + "' in " + filepath);
+        msg("Saved '" + page.getTitleText() + "' in " + filepath);
     }
 
     /**
@@ -72,7 +72,6 @@ public abstract class ToolParser {
     public String getPath() {
     	return getArchiver().getOption("archive.dir.base") + getArchiver().getSite() + "/" + getSubdirectory();
     }
-
     /**
      * Get the short tool name for the current parser.  Tool names should only contain [a-z0-9_]
      *
@@ -100,6 +99,14 @@ public abstract class ToolParser {
 			out.close();
 		}
 	}
+	/**
+	 * Output a message via Archiver's msg method.
+	 *
+	 * @param msg
+	 */
+	public void msg( String msg ) {
+		getArchiver().msg(msg);
+	}
 	public String getMainURL() {
 		return mainURL;
 	}
@@ -115,7 +122,10 @@ public abstract class ToolParser {
 	public void setArchiver(Archiver archiver) {
 		this.archiver = archiver;
 	}
-
+	/**
+	 * Get the tool subdirectory.
+	 * @return The subdirectory with a trailing /
+	 */
 	public String getSubdirectory() {
 		if ( ! subdirectory.equals("") && ! subdirectory.endsWith("/") ) {
 			subdirectory += "/";

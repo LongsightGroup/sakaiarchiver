@@ -23,7 +23,7 @@ import org.sakaiproject.util.archiver.parsers.ResourcesParser;
 import org.sakaiproject.util.archiver.parsers.RosterParser;
 import org.sakaiproject.util.archiver.parsers.SamigoParser;
 import org.sakaiproject.util.archiver.parsers.SkinParser;
-import org.sakaiproject.util.archiver.parsers.SylabusParser;
+import org.sakaiproject.util.archiver.parsers.SyllabusParser;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.WebClient;
@@ -35,6 +35,11 @@ import com.gargoylesoftware.htmlunit.html.HtmlSubmitInput;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 
 public class Archiver {
+
+	public static boolean DEBUG = true;
+	public static final int DEBUG_LEVEL = 1;
+	public static final String DEBUG_TOOL = "resources";
+	public static final boolean DEBUG_SKIP_FILES = true;
 
     // Input arguments and options
 	private String site;
@@ -254,6 +259,9 @@ public class Archiver {
     		if ( ! anchors.isEmpty() ) {
     			HtmlAnchor tool = (HtmlAnchor) anchors.get(0);
     			String toolName = classMap.get(key);
+    			if ( DEBUG_TOOL != null && ! toolName.equals(DEBUG_TOOL)) {
+    				continue;
+    			}
     			parser = getToolToParser().get(toolName);
     			parser.setMainURL(tool.getHrefAttribute());
     			getSiteTools().add(parser);
@@ -265,7 +273,7 @@ public class Archiver {
      */
     public void initializeToolParser() {
     	Map<String,String> classMap = getClassToTool();
-    	classMap.put("icon-sakai-syllabus", "sylabus");
+    	classMap.put("icon-sakai-syllabus", "syllabus");
     	classMap.put("icon-sakai-resources", "resources");
     	classMap.put("icon-sakai-forums", "forums");
     	classMap.put("icon-sakai-resources", "resources");
@@ -277,7 +285,7 @@ public class Archiver {
     	Map<String,ToolParser> toolMap = getToolToParser();
     	toolMap.put("skin", new SkinParser());
     	toolMap.put("home", new HomeParser());
-    	toolMap.put("sylabus", new SylabusParser());
+    	toolMap.put("syllabus", new SyllabusParser());
     	toolMap.put("resources", new ResourcesParser());
     	toolMap.put("forums", new ForumsParser());
     	toolMap.put("samigo", new SamigoParser());
@@ -317,6 +325,9 @@ public class Archiver {
     		out.close();
     	}
     }
+    public static boolean isDebug( int level ) {
+    	return DEBUG && DEBUG_LEVEL >= level;
+    }
     /**
      * Save a file and associated files.
      *
@@ -324,14 +335,6 @@ public class Archiver {
      * @throws IOException
      */
 /*
-    public void savePage(String name) throws IOException {
-
-    	String fullName = getOption("archive.dir.base") + getSite() + "/" + name;
-        File file = new File(fullName );
-        file.getParentFile().mkdirs();
-        new JavaScriptXMLSerializer().save(getHomePage(), file);
-        msg("Saved name in " + fullName);
-    }
     public void dumpAnchors() {
         List<HtmlAnchor> anchors = getPage().getAnchors();
         Iterator<HtmlAnchor> iAnchors = anchors.iterator();
@@ -423,7 +426,11 @@ public class Archiver {
 	public void setArchiveBasePath(String archiveBasePath) {
 		this.archiveBasePath = archiveBasePath;
 	}
-
+	/**
+	 * Get the class to tool property
+	 *
+	 * @return Always returns a Map object (may be empty)
+	 */
 	public Map<String, String> getClassToTool() {
 		if ( this.classToTool == null ) {
 			this.classToTool = new HashMap<String, String>();
@@ -440,6 +447,11 @@ public class Archiver {
 	public void setSitePages(PageTree<PageInfo> sitePages) {
 		this.sitePages = sitePages;
 	}
+	/**
+	 * Get the tool parser lookup property
+	 *
+	 * @return Always returns a Map object (may be empty)
+	 */
 	public Map<String, ToolParser> getToolToParser() {
 		if ( toolToParser == null ) {
 			toolToParser = new HashMap<String, ToolParser>();
@@ -449,6 +461,11 @@ public class Archiver {
 	public void setToolToParser(Map<String, ToolParser> toolToParser) {
 		this.toolToParser = toolToParser;
 	}
+	/**
+	 * Get the site tools property
+	 *
+	 * @return Always returns a Map object (may be empty)
+	 */
 	public List<ToolParser> getSiteTools() {
 		if ( siteTools == null ) {
 			siteTools = new ArrayList<ToolParser>();
@@ -467,5 +484,4 @@ public class Archiver {
 	public void setSavedPages(List<String> savedPages) {
 		this.savedPages = savedPages;
 	}
-
 }
