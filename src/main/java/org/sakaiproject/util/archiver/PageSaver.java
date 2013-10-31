@@ -58,7 +58,7 @@ public class PageSaver {
 	 * @param filepath  The file path and file name relative to the archive base path.
 	 * @throws IOException
 	 */
-	public void save( HtmlPage page, String filepath ) throws IOException {
+	public void save( HtmlPage page, String filepath ) throws Exception {
 		setPage(page);
 
 		File base = new File(getArchiver().getBasePath());
@@ -127,19 +127,24 @@ public class PageSaver {
 			String replace = "src=\"" + iframeFile + "\"";
 			html = html.replaceAll(pattern, replace);
 		}
+
+        ToolParser parser = getParser();
+
 		// Add offline js and css
 		String replace = "";
 		if ( ! html.contains("library/js/jquery.js")) {
-			replace =
-                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\"></script>";
+			replace +=
+                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\"></script>\r\n";
 		}
 		replace +=
-		  "<script type=\"text/javascript\" language=\"JavaScript\" src=\"../sakai-offline.js\"></script>" +
-		  "<link href=\"../sakai-offline.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\">" +
-	      "</body>";
+		  "<script type=\"text/javascript\" language=\"JavaScript\" src=\"../sakai-offline.js\"></script>\r\n" +
+		  "<link href=\"../sakai-offline.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\">\r\n";
+        if ( parser != null ) {
+            replace += parser.addJavascript();
+        }
+	    replace += "</body>";
 		html = html.replaceAll("</body>",replace);
 
-		ToolParser parser = getParser();
 		if ( parser != null ) {
 		    html = parser.modifySavedHtml(page, html);
 		}
@@ -233,11 +238,17 @@ if ( false && ext.equals("zip") ) {
 	 * @return A map with the iframe name as key and URL to replace as value.
 	 * @throws IOException
 	 */
-	public Map<String,String> parseIframes( HtmlPage page, String filepath ) throws IOException {
+	public Map<String,String> parseIframes( HtmlPage page, String filepath ) throws Exception {
 		Map<String,String> iframes = new HashMap<String,String>();
 
 		List<FrameWindow> windows = page.getFrames();
 		for(FrameWindow frame: windows ) {
+
+		    // Skip iframes without source/javascript... probably CKeditor.
+		    String src = frame.getFrameElement().getSrcAttribute();
+		    if ( src.equals("") || src.startsWith("javascript:")) {
+		        continue;
+		    }
 
 			HtmlPage framePage = (HtmlPage) frame.getEnclosedPage();
 			BaseFrameElement element = frame.getFrameElement();

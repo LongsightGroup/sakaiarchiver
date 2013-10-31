@@ -22,5 +22,5 @@
 #toolMenu li a.icon-sakai-syllabus,
 a.offline-link,
 a.offline-link:link {
-	color: red;
+	color: red !important;
 }

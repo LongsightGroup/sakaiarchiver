@@ -5,13 +5,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.html.HtmlInlineFrame;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 public abstract class ToolParser {
 
 	private String mainURL;
+	private String toolURL;
 	private Archiver archiver;
 	private String subdirectory;
 	private String mainPage;
@@ -40,6 +44,8 @@ public abstract class ToolParser {
 			return;
 		}
 		HtmlPage page = loadPage(getMainURL());
+		setToolURL(getPortletMainIframeURL(page));
+
 		setCurrentPage(page);
 		PageInfo info = new PageInfo(page);
 		info.setTool(getToolName());
@@ -57,7 +63,7 @@ public abstract class ToolParser {
 	 * @param filepath The path to the file to save the html in relative to the archive base.
 	 * @throws IOException
 	 */
-    public void savePage(HtmlPage page, String filepath) throws IOException {
+    public void savePage(HtmlPage page, String filepath) throws Exception {
 		PageSaver pageSaver = new PageSaver(getArchiver());
 		pageSaver.save(page, filepath);
         msg("Saved '" + page.getTitleText() + "' in " + filepath, Archiver.NORMAL);
@@ -100,6 +106,54 @@ public abstract class ToolParser {
 		}
 	}
 	/**
+	 * Get a tool view page.
+	 *
+	 * Note:  If previous page is a "protected" page, a tool reset should be
+	 * called prior to using this.
+	 *
+	 * @param page
+	 * @param view
+	 * @return The tool view page.
+	 * @throws FailingHttpStatusCodeException
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public HtmlPage getSubViewPage( HtmlPage page, String view )
+	        throws FailingHttpStatusCodeException, MalformedURLException,
+	               IOException {
+	    URL url = page.getUrl();
+	    String viewURL = url.toString().split("\\?")[0] +
+	            "?sakai_action=doView&view=" + view;
+	    HtmlPage viewPage = getArchiver().getWebClient().getPage(viewURL);
+	    return viewPage;
+	}
+	public String getPortletMainIframeURL( HtmlPage page ) {
+        List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
+        return ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();
+	}
+	/**
+	 * Sakai prevent a user from leaving some pages unless the server gets
+	 * a valid command (edit loss protection).  This issues a reset to the
+	 * server so new pages to be selected.
+	 *
+	 * @throws FailingHttpStatusCodeException
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public void resetTool()
+	        throws FailingHttpStatusCodeException, MalformedURLException,
+	               IOException {
+	    String toolUrl = getToolURL();
+	    if ( toolUrl == null || ! toolUrl.contains("/tool/")) {
+	        msg("COULD NOT RESET TOOL: " + getToolName() +
+	                ".  The main url was invalid or null.", Archiver.ERROR);
+	        return;
+	    }
+	    String resetUrl = toolUrl.replaceAll("/tool/", "/tool-reset/");
+//msg("resetURL=" + resetUrl, Archiver.DEBUG);
+        getArchiver().getWebClient().getPage(resetUrl);
+	}
+	/**
 	 * This method is called by PageSave after it has modified the HTML and
 	 * before it is written to the file.
 	 *
@@ -109,6 +163,9 @@ public abstract class ToolParser {
 	 */
 	public String modifySavedHtml( HtmlPage page, String html ) {
 	    return html;
+	}
+	public String addJavascript() throws Exception {
+	    return "";
 	}
 	/**
 	 * Output a message via Archiver's msg method.
@@ -171,5 +228,13 @@ public abstract class ToolParser {
 	public void setParentPage(HtmlPage parentPage) {
 		this.parentPage = parentPage;
 	}
+
+    public String getToolURL() {
+        return toolURL;
+    }
+
+    public void setToolURL(String toolURL) {
+        this.toolURL = toolURL;
+    }
 
 }
