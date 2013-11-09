@@ -31,6 +31,11 @@ if (typeof jQuery != 'undefined') {
         document.location = '../assignments/index.htm';
         return false;
       });
+      // forums link
+      $('a.icon-sakai-forums').unbind('click').click(function() {
+        document.location = '../forums/index.htm';
+        return false;
+      });
       // tests link
       $('a.icon-sakai-samigo').unbind('click').click(function() {
         document.location = '../samigo/index.htm';

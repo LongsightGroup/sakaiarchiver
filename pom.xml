@@ -50,8 +50,8 @@
                 <directory>${basedir}/src/main/resources</directory>
                 <includes>
                   <include>sakai-archiver.properties</include>
-                  <include>sakai-offline.css</include>
-                  <include>sakai-offline.js</include>
+                  <include>*.css</include>
+                  <include>*.js</include>
                 </includes>
             </resource>
         </resources>

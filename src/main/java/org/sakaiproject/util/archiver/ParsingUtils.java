@@ -70,16 +70,46 @@ public class ParsingUtils {
 	 * @param query The query string
 	 * @return
 	 */
-	public static Map<String, String> getQueryMap(String query)
-	 {
-	     String[] params = query.split("&");
-	     Map<String, String> map = new HashMap<String, String>();
-	     for (String param : params)
-	     {
-	         String name = param.split("=")[0];
-	         String value = param.split("=")[1];
-	         map.put(name, value);
-	     }
-	     return map;
-	 }
+	public static Map<String, String> getQueryMap(String query)	{
+	    String[] params = query.split("&");
+	    Map<String, String> map = new HashMap<String, String>();
+	    for (String param : params) {
+	        String[] parts = param.split("=");
+//	        String name = parts[0];
+	        String value = null;
+	        if ( parts.length > 1 ) {
+	            value = parts[1];
+	        }
+//else {
+//    System.out.println("Missing query string value.  Name=" + parts[0]);
+//    System.out.println("Missing query string value.  Query=" + query);
+//}
+	        map.put(parts[0], value);
+	    }
+	    return map;
+	}
+	/**
+	 * Take a string of javascript and wrap it in the <Script... </Script> tags.
+	 *
+	 * @param script  The Javascript to wrap.
+	 * @return The "Wrapped" Javascript.
+	 */
+	public static String addInlineJavaScript( String script ) {
+        String js = "<script language=\"JavaScript\" type=\"text/javascript\">\r\n";
+        js += script;
+        js +="\r\n</script>";
+	    return js;
+	}
+    /**
+     * Create a <Script.. src=..... include string.
+     *
+     * @param file The javascript file to include.
+     * @return The Javascript include string.
+     */
+    public static String addJavaScriptInclude( String file ) {
+        String js = "<script src=\"" + file + "\" " +
+            "type=\"text/javascript\" language=\"JavaScript\">" +
+            "</script>\r\n";
+        return js;
+    }
 }

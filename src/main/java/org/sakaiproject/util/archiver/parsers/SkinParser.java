@@ -13,7 +13,13 @@ import com.gargoylesoftware.htmlunit.WebResponse;
 import com.gargoylesoftware.htmlunit.html.HtmlLink;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlScript;
-
+/**
+ * Was intended to extract images, css, etc needed for site.  Not used, these
+ * are saved as part of the PageSaver process now.
+ *
+ * @author monroe
+ * @deprecated Part of PageSaver now.
+ */
 public class SkinParser extends ToolParser {
 
 	public static final String TOOL_NAME = "skin";

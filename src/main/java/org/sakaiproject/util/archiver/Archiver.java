@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -22,7 +23,6 @@ import org.sakaiproject.util.archiver.parsers.HomeParser;
 import org.sakaiproject.util.archiver.parsers.ResourcesParser;
 import org.sakaiproject.util.archiver.parsers.RosterParser;
 import org.sakaiproject.util.archiver.parsers.SamigoParser;
-import org.sakaiproject.util.archiver.parsers.SkinParser;
 import org.sakaiproject.util.archiver.parsers.SyllabusParser;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
@@ -42,7 +42,7 @@ public class Archiver {
 	public static final int NORMAL = 0;
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
-	public static final String DEBUG_TOOL = null; //"assignments";
+	public static final String DEBUG_TOOL = "samigo";
 	public static final boolean DEBUG_SKIP_FILES = false;
 
     // Input arguments and options
@@ -60,10 +60,14 @@ public class Archiver {
     // Working vars.
     private HtmlPage homePage;
     private WebClient webClient;
+    /**
+     * @Deprecated Was going to be used to produce navigation but not used now
+     */
     private PageTree<PageInfo> sitePages;
     private List<ToolParser> siteTools;
     private List<String> savedPages;
     private int outputVerbosity = DEBUG;
+    private String siteHost;
 
 	/**
 	 * Constructor with all the command line options.
@@ -206,6 +210,8 @@ public class Archiver {
         WebClient webClient = new WebClient();
         webClient.getCookieManager().setCookiesEnabled(true);
         webClient.getOptions().setRedirectEnabled(true);
+        webClient.getOptions().setThrowExceptionOnScriptError(false);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.WARNING);
         setWebClient(webClient);
     }
     /**
@@ -285,7 +291,6 @@ public class Archiver {
 
     	//TODO: Replace with tool specific classes!
     	Map<String,ToolParser> toolMap = getToolToParser();
-    	toolMap.put("skin", new SkinParser());
     	toolMap.put("home", new HomeParser());
     	toolMap.put("syllabus", new SyllabusParser());
     	toolMap.put("resources", new ResourcesParser());
@@ -492,4 +497,10 @@ public class Archiver {
 	public void setOutputVerbosity(int outputVerbosity) {
 		this.outputVerbosity = outputVerbosity;
 	}
+    public String getSiteHost() {
+        return siteHost;
+    }
+    public void setSiteHost(String siteHost) {
+        this.siteHost = siteHost;
+    }
 }

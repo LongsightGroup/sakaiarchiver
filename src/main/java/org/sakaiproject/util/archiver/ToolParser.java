@@ -2,11 +2,17 @@ package org.sakaiproject.util.archiver;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.commons.io.IOUtils;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.html.HtmlInlineFrame;
@@ -21,6 +27,7 @@ public abstract class ToolParser {
 	private String mainPage;
 	private HtmlPage currentPage;
 	private HtmlPage parentPage;
+    private String toolPageName;
 
 	public ToolParser() {
 		initialize();
@@ -30,6 +37,9 @@ public abstract class ToolParser {
 		this();
 		setMainURL(mainURL);
 	}
+	/**
+	 * Setup the required default class properties when Parser object created.
+	 */
 	public void initialize() {
 		// Subclasses should set up properties here.
 	}
@@ -37,8 +47,71 @@ public abstract class ToolParser {
 	public void parse( Archiver archiver ) throws Exception {
 		setArchiver(archiver);
 		msg("Parsing tool:  " + getToolName(), Archiver.NORMAL);
+        init();
 		parse();
+		fini();
 	}
+    /**
+     * Set up for tool parsing.
+     *
+     * @throws Exception
+     */
+    public void init() throws Exception {
+        copyResources();
+    }
+    /**
+     * Perform the parsing of the tool.
+     *
+     * @throws Exception
+     */
+    public void parse() throws Exception {
+        loadMainPage();
+        savePage(getCurrentPage(), getSubdirectory() + "index.htm");
+    }
+    /**
+     * Clean up after parsing tool (if needed)
+     *
+     * @throws Exception
+     */
+    public void fini() throws Exception {
+
+    }
+    /**
+     * Copy any required resources to the destination directory.
+     *
+     * @throws IOException
+     */
+    public void copyResources() throws IOException {
+        List<String> files = getResources();
+        File base = new File(getArchiver().getBasePath());
+
+        for( String file: files ) {
+            File resource = new File(base,file);
+
+            OutputStream out = new FileOutputStream(resource);
+            InputStream in = Archiver.class.getClassLoader().getResourceAsStream(file);
+            try {
+                IOUtils.copy(in, out);
+            } finally {
+                out.close();
+            }
+        }
+    }
+    /**
+     * Return a list of resource files needed by parser (if any).
+     *
+     * @return
+     */
+    public List<String> getResources() {
+        return new ArrayList<String>();
+    }
+    /**
+     * Loads the tools' main page.
+     *
+     * @throws FailingHttpStatusCodeException
+     * @throws MalformedURLException
+     * @throws IOException
+     */
 	public void loadMainPage() throws FailingHttpStatusCodeException, MalformedURLException, IOException {
 		if ( getMainURL() == null ) {
 			return;
@@ -51,10 +124,6 @@ public abstract class ToolParser {
 		info.setTool(getToolName());
 		info.setLocalURL("file://" + getPath() + "index.html");
 		getArchiver().getSitePages().addLeaf(info);
-	}
-	public void parse() throws Exception {
-		loadMainPage();
-		savePage(getCurrentPage(), getSubdirectory() + "index.htm");
 	}
 	/**
 	 * Save a page and associated information.
@@ -237,4 +306,11 @@ public abstract class ToolParser {
         this.toolURL = toolURL;
     }
 
+    public String getToolPageName() {
+        return toolPageName;
+    }
+
+    public void setToolPageName(String toolPageName) {
+        this.toolPageName = toolPageName;
+    }
 }

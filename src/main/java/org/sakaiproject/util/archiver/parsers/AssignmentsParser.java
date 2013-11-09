@@ -30,7 +30,6 @@ public class AssignmentsParser extends ToolParser {
 
 	private String pageSaveType;
 	private Map<String,Map<String,String>> pageUrlUpdates;
-	private String toolPageName;
 
 	public AssignmentsParser() {
 		super();
@@ -43,6 +42,13 @@ public class AssignmentsParser extends ToolParser {
 	public void initialize() {
 		setSubdirectory(getToolName());
 	}
+
+    @Override
+    public List<String> getResources() {
+        List<String> resources = super.getResources();
+        resources.add("sakai-offline-assignments.js");
+        return resources;
+    }
 
 	@Override
 	public void parse() throws Exception {
@@ -231,7 +237,8 @@ public class AssignmentsParser extends ToolParser {
 
         // Update tool navigation links
         String toolPage = getToolPageName();
-/*
+
+        // Secondary Assignment views navigation (viewing assignment)
         newHtml = newHtml.replaceAll(
             "<a href=\"#\" title = \"Assignment List\" ",
             "<a class=\"offline-link\" title=\"Assignment List\" href=\"" +
@@ -244,7 +251,8 @@ public class AssignmentsParser extends ToolParser {
                 "<a href=\"#\" title=\"Student View\" ",
                 "<a class=\"offline-link\" title=\"Student View\" href=\"" +
                 toolPage + STUDENT_VIEW + "\"");
-*/
+
+        // Main Assignment views navigation
         newHtml = newHtml.replaceAll("href=\".*view="+MAIN_PAGE+"[^\"]*\" ",
                 "class=\"offline-link\" href=\"" + toolPage + "\"");
         newHtml = newHtml.replaceAll("href=\".*view="+GRADE_PAGE+"[^\"]*\" ",
@@ -257,18 +265,19 @@ public class AssignmentsParser extends ToolParser {
 
     @Override
     public String addJavascript() throws URISyntaxException {
-        String saveType = getPageSaveType();
+
         String js = "";
+        String saveType = getPageSaveType();
         if ( MAIN_PAGE.equals(saveType)  || BY_STUDENT.equals(saveType)) {
             String pageName = getToolPageName();
-            js = "<script language=\"JavaScript\" type=\"text/javascript\">";
-            js += "\\$(\"select#view\").hide().after(" +
+            js = "\\$(\"select#view\").hide().after(" +
                   "\"<span><a class='offline-link' href='" + pageName +
-                  "'>Assignment List</a>&nbsp&nbsp;|&nbsp&nbsp;<a  class='offline-link' href='" +
-                  pageName + "-" + BY_STUDENT +
+                  "'>Assignment List</a>&nbsp&nbsp;|&nbsp&nbsp;" +
+                  "<a class='offline-link' href='" + pageName+"-"+BY_STUDENT +
                   "'>Assignment List by Student</a></span>\");";
-            js +="</script>";
+            js = ParsingUtils.addInlineJavaScript(js);
         }
+        js += ParsingUtils.addJavaScriptInclude("../sakai-offline-assignments.js");
         return js;
     }
 
@@ -378,7 +387,11 @@ public class AssignmentsParser extends ToolParser {
     public void setPageSaveType(String pageSaveType) {
         this.pageSaveType = pageSaveType;
     }
-
+    /**
+     * Get the page url map.
+     *
+     * @return Always returns an object.
+     */
     public Map<String, Map<String,String>> getPageUrlUpdates() {
         if ( pageUrlUpdates == null ) {
             pageUrlUpdates = new HashMap<String,Map<String,String>>();
@@ -388,13 +401,5 @@ public class AssignmentsParser extends ToolParser {
 
     public void setPageUrlUpdates(Map<String, Map<String,String>> pageUrlUpdates) {
         this.pageUrlUpdates = pageUrlUpdates;
-    }
-
-    public String getToolPageName() {
-        return toolPageName;
-    }
-
-    public void setToolPageName(String toolPageName) {
-        this.toolPageName = toolPageName;
     }
 }
