@@ -104,12 +104,34 @@ public class ParsingUtils {
      * Create a <Script.. src=..... include string.
      *
      * @param file The javascript file to include.
-     * @return The Javascript include string.
+     * @return The Javascript include string with trailing crlf.
      */
     public static String addJavaScriptInclude( String file ) {
         String js = "<script src=\"" + file + "\" " +
             "type=\"text/javascript\" language=\"JavaScript\">" +
             "</script>\r\n";
         return js;
+    }
+    /**
+     * Replace all links identified by text in the link (e.g. id or onclick
+     * string).
+     *
+     * @param html
+     * @param urlChanges
+     * @param regexPrefix
+     * @param regexSuffix
+     * @return
+     */
+    public static String replaceMatchingAnchors( String html,
+                             Map<String,String> urlChanges, String regexPrefix,
+                             String regexSuffix ) {
+
+        for ( String id: urlChanges.keySet()) {
+            String url = urlChanges.get(id);
+            String regex = regexPrefix + id + regexSuffix;
+            String replacement = "<a class='offline-link' href='" + url + "'>";
+            html = html.replaceAll(regex, replacement);
+        }
+        return html;
     }
 }
