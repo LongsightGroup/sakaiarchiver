@@ -145,7 +145,8 @@ public abstract class ToolParser {
      *         end with /
      */
     public String getPath() {
-    	return getArchiver().getOption("archive.dir.base") + getArchiver().getSite() + "/" + getSubdirectory();
+    	return getArchiver().getOption(Archiver.ARCHIVE_DIR_BASE) +
+    	            getArchiver().getSite() + "/" + getSubdirectory();
     }
     /**
      * Get the short tool name for the current parser.  Tool names should only contain [a-z0-9_]
@@ -221,6 +222,22 @@ public abstract class ToolParser {
 	    String resetUrl = toolUrl.replaceAll("/tool/", "/tool-reset/");
 //msg("resetURL=" + resetUrl, Archiver.DEBUG);
         getArchiver().getWebClient().getPage(resetUrl);
+	}
+	/**
+	 * Load the tool's main (iframe) page
+	 *
+	 * @return The tool's main page.
+	 * @throws Exception
+	 */
+	public HtmlPage loadToolMainPage() throws Exception  {
+        String toolUrl = getToolURL();
+        if ( toolUrl == null  ) {
+            msg("COULD NOT RESET TOOL: " + getToolName() +
+                    ".  The main url was invalid or null.", Archiver.ERROR);
+            return null;
+        }
+        return getArchiver().getWebClient().getPage(toolUrl);
+
 	}
 	/**
 	 * This method is called by PageSave after it has modified the HTML and
