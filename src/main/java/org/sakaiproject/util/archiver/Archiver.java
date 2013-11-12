@@ -44,8 +44,8 @@ public class Archiver {
 	public static final int NORMAL = 0;
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
-	public static final String DEBUG_TOOL = "samigo";
-//    public static final String DEBUG_TOOL = null;
+//	public static final String DEBUG_TOOL = "samigo";
+    public static final String DEBUG_TOOL = null;
 	public static final boolean DEBUG_SKIP_FILES = false;
 
 	// Option keys
