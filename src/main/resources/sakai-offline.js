@@ -1,14 +1,33 @@
 /* JS added to offline pages */
+var thisSite = new RegExp("/^http?:\/\/" + siteHost + "\/","i");
+
 if (typeof jQuery != 'undefined') {
   (function($) {
     $(document).ready(function() {
       
-      // Disable all links
+      // Mark code allowed links as offline-links.
+      $('a').each(function() {
+        var href = $(this).attr("href");
+        // Allow file urls
+        if ((/^[.][.][/]access[/]content/).test(href) ) {
+            $(this).addClass("offline-link");
+        }
+        // Allow any urls to external sites.
+        if ( (/^http?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+          $(this).addClass("offline-link");
+        }
+      });
+      
+      // Disallow all links unless they are allowed.
       $('a').removeAttr('onclick').click(function() {
         var href = $(this).attr("href");
         // Allow file urls
         if ((/^[.][.][/]access[/]content/).test(href) ) {
             return true;
+        }
+        // Allow any urls to external sites.
+        if ( (/^http?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+          return true;
         }
         alert("Not available in offline mode");
         return false;
