@@ -1,11 +1,13 @@
 package org.sakaiproject.util.archiver.parsers;
 
 import java.net.URI;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.sakaiproject.util.archiver.Archiver;
@@ -17,19 +19,20 @@ import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlDivision;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlInlineFrame;
+import com.gargoylesoftware.htmlunit.html.HtmlHeading3;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlOption;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlParagraph;
 import com.gargoylesoftware.htmlunit.html.HtmlSelect;
 import com.gargoylesoftware.htmlunit.html.HtmlTable;
+import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
 /**
  * Parse the Samigo tools and create all the pages and navigation needed.
  *
- * TODO: Parse the student submissions under questions
- * TODO: Question Pools
  * TODO: Assessment Types (in scope?)
+ * TODO: Parse Score Statistics subpages (in scope?)
+ * TODO: Parse Score Question Statistics subpages (in scope?)
  * TODO: Preview (in scope?)
  *
  * @author monroe
@@ -39,15 +42,21 @@ public class SamigoParser extends ToolParser {
 
 	public static final String TOOL_NAME = "samigo";
 
+	// Page types
 	public static final int MAIN = 1;
 	public static final int EDIT = 2;
 	public static final int SETTINGS = 3;
 	public static final int SCORES_MAIN = 4;
     public static final int SCORES_SUBPAGE = 5;
+    public static final int STUDENT_SUBMISSION = 6;
+    public static final int QUESTION_POOL_MAIN = 7;
+    public static final int QUESTION_POOL_SUBPAGE = 8;
+    public static final int QUESTION_POOL_QUESTION = 9;
 
 	private Map<String,Map<String,String>> selectChanges;
 	private int pageSaveType;
 	private Map<String,Map<String,String>> pageUrlUpdates;
+	private Map<String,String> studentScores;
 
 	public SamigoParser() {
 		super();
@@ -64,11 +73,16 @@ public class SamigoParser extends ToolParser {
         setToolPageName(FilenameUtils.getName(new URI(getToolURL()).getPath()));
 
         // Get the main iframe
-        List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
-        String path = ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();
-        HtmlPage mainPage = getArchiver().getWebClient().getPage(path);
+//        List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
+//        String path = ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();
+//        HtmlPage mainPage = getArchiver().getWebClient().getPage(path);
+        HtmlPage mainPage = loadToolMainPage();
 
         parseMainPage(mainPage);
+
+        // Reload the main page.
+        mainPage = loadToolMainPage();
+        parseQuestionPools(mainPage);
 
         // Overwrite the default frame with the "opened" version.
         String name = getSubdirectory() + getToolPageName();
@@ -76,7 +90,12 @@ public class SamigoParser extends ToolParser {
                 mainPage.getTitleText()+")", Archiver.NORMAL);
         savePage(MAIN, mainPage, name );
     }
-
+	/**
+	 * Parse the three sections on the main assessments page.
+	 *
+	 * @param page
+	 * @throws Exception
+	 */
 	public void parseMainPage( HtmlPage page) throws Exception {
 
 	    parsePending(page);
@@ -84,6 +103,135 @@ public class SamigoParser extends ToolParser {
 	    parseInactive(page);
 	}
 	/**
+	 * Parse the Question Pools area of the Samigo tool.
+	 *
+	 * @param mainPage
+	 * @throws Exception
+	 */
+	public void parseQuestionPools(HtmlPage mainPage) throws Exception {
+
+	    HtmlAnchor link = mainPage.getHtmlElementById("authorIndexForm:questionPoolsLink");
+	    HtmlPage page = link.click();
+
+	    // Get link id's and pool id numbers for question pools
+	    HtmlTable table = page.getHtmlElementById("questionpool:TreeTable");
+	    HtmlTableBody body = (HtmlTableBody)
+	            table.getHtmlElementsByTagName("tbody").get(0);
+	    Map<String,String> poolIds = new HashMap<String,String>();
+	    List<?> poolAnchors = body.getHtmlElementsByTagName("a");
+	    for( Object obj: poolAnchors ) {
+	        HtmlAnchor anchor = (HtmlAnchor) obj;
+	        String id = anchor.getId();
+	        if ( id.matches("questionpool[:]TreeTable[:]\\d+[:]editlink") ) {
+	            String onClick = anchor.getOnClickAttribute();
+	            Pattern p = Pattern.compile(
+	                    "^.*\\[[']questionpool[']\\]\\[[']qpid[']\\]\\.value=[']([0-9]+)['].*");
+	            Matcher m = p.matcher(onClick);
+	            m.find();
+	            String poolId = m.group(1);
+	            poolIds.put(id, poolId);
+	        }
+	    }
+
+	    // Parse the individual question pools.
+	    Map<String,String> urlMods = new HashMap<String,String>();
+	    for( String poolLinkId: poolIds.keySet() ) {
+	        String filename =
+	                parseQuestionPool(page, poolIds.get(poolLinkId), poolLinkId);
+	        urlMods.put(poolLinkId, filename);
+
+	        // Reload the question pool page
+	        page = loadToolMainPage();
+	        link = page.getHtmlElementById("authorIndexForm:questionPoolsLink");
+	        page = link.click();
+	    }
+	    getPageUrlUpdates().put("QUESTION_POOL_MAIN", urlMods);
+
+        String name = getSubdirectory() + getToolPageName() + "-question-pool";
+        savePage( QUESTION_POOL_MAIN, page, name );
+	}
+	/**
+	 * Parses an a question pool page.
+	 *
+	 * @param page
+	 * @param poolId
+	 * @param poolLinkId
+	 * @return
+	 * @throws Exception
+	 */
+	public String parseQuestionPool( HtmlPage page, String poolId,
+	                                 String poolLinkId )
+	                                         throws Exception {
+
+       HtmlAnchor anchor = page.getHtmlElementById(poolLinkId);
+       page = anchor.click();
+
+       // Get link id and question id for questions in pool
+       List<?> sections = page.getByXPath("//form/div");
+       HtmlDivision qDiv = (HtmlDivision) sections.get(2);
+       List<?> anchors = qDiv.getHtmlElementsByTagName("a");
+       Map<String,String> qIds = new HashMap<String,String>();
+       for( Object obj: anchors ) {
+           HtmlAnchor link = (HtmlAnchor) obj;
+           String id = link.getId().trim();
+           if ( id.matches("editform[:][^:]+[:][^:]+[:]modify")) {
+               String onClick = link.getOnClickAttribute();
+               Pattern p = Pattern.compile(
+                       "^.*\\[[']editform[']\\]\\[[']itemid[']\\]\\.value=[']([0-9]+)['].*");
+               Matcher m = p.matcher(onClick);
+               m.find();
+               String qId = m.group(1);
+               qIds.put(id, qId);
+           }
+       }
+
+       // Parse the individual questions.
+       Map<String,String> urlMods = new HashMap<String,String>();
+       for( String qLinkId: qIds.keySet() ) {
+           String filename =
+                   parseQuestion(page, poolId, qIds.get(qLinkId), qLinkId);
+           urlMods.put(qLinkId, filename);
+
+           // Reload the question pool page
+           page = loadToolMainPage();
+           HtmlAnchor link = page.getHtmlElementById("authorIndexForm:questionPoolsLink");
+           page = link.click();
+           anchor = page.getHtmlElementById(poolLinkId);
+           page = anchor.click();
+       }
+       getPageUrlUpdates().put("QUESTION_POOL_SUBPAGE", urlMods);
+
+       String filename = "question-pool-" + poolId;
+       String filepath = getSubdirectory() + filename;
+       savePage(QUESTION_POOL_SUBPAGE, page, filepath);
+
+       return filename;
+	}
+	/**
+	 * Parse the individual questions.
+	 *
+	 * @param page
+	 * @param poolId
+	 * @param qId
+	 * @param qLinkId
+	 * @return
+	 * @throws Exception
+	 */
+	private String parseQuestion(HtmlPage page, String poolId, String qId,
+                                 String qLinkId)
+	                                throws Exception {
+
+	    HtmlAnchor link = page.getHtmlElementById(qLinkId);
+	    page = link.click();
+
+        String filename = "question-pool-" + poolId + "-question-" + qId;
+	    String filepath = getSubdirectory() + filename;
+	    savePage(QUESTION_POOL_QUESTION, page, filepath);
+
+        return filename;
+    }
+
+    /**
 	 * Parse the pending assignment area.
 	 *
 	 * @param page
@@ -109,9 +257,8 @@ public class SamigoParser extends ToolParser {
 	    }
 
 	    // Get edit/settings pages using a fresh main page for each.
-	    URL mainUrl = page.getUrl();
 	    for( String selectId: selectIds ) {
-	        HtmlPage workingPage = getArchiver().getWebClient().getPage(mainUrl);
+	        HtmlPage workingPage = loadToolMainPage();
 
 	        Map<String,String> links = new HashMap<String,String>();
 	        HtmlSelect select = (HtmlSelect) workingPage.getElementById(selectId);
@@ -172,9 +319,8 @@ public class SamigoParser extends ToolParser {
         }
 
         // Get edit/settings pages using a fresh main page for each.
-        URL mainUrl = page.getUrl();
         for( String selectId: selectIds ) {
-            HtmlPage workingPage = getArchiver().getWebClient().getPage(mainUrl);
+            HtmlPage workingPage = loadToolMainPage();
 
             Map<String,String> links = new HashMap<String,String>();
             HtmlSelect select = (HtmlSelect) workingPage.getElementById(selectId);
@@ -219,9 +365,8 @@ public class SamigoParser extends ToolParser {
         }
 
         // Get scores/settings pages using a fresh main page for each.
-        URL mainUrl = page.getUrl();
         for( String selectId: selectIds ) {
-            HtmlPage workingPage = getArchiver().getWebClient().getPage(mainUrl);
+            HtmlPage workingPage = loadToolMainPage();
 
             Map<String,String> links = new HashMap<String,String>();
             HtmlSelect select = (HtmlSelect) workingPage.getElementById(selectId);
@@ -233,6 +378,7 @@ public class SamigoParser extends ToolParser {
             String id = input.getValueAttribute().trim();
 
             parseScoresSubpages(scoresPage, id);
+            parseTotalScoresStudents(scoresPage, id, selectId );
 
             String filename = "assessment-" + id + "-scores";
             String filepath = getSubdirectory() + filename;
@@ -240,7 +386,7 @@ public class SamigoParser extends ToolParser {
             savePage(SCORES_MAIN, scoresPage, filepath);
 
             // Parse settings page
-            workingPage = getArchiver().getWebClient().getPage(mainUrl);
+            workingPage = loadToolMainPage();
             select = (HtmlSelect) workingPage.getElementById(selectId);
             option = select.getOptionByValue("settings_published");
             HtmlPage settingsPage = select.setSelectedAttribute(option, true);
@@ -254,7 +400,83 @@ public class SamigoParser extends ToolParser {
             getSelectChanges().put(selectId, links);
         }
     }
+    /**
+     * Parse thru the student submissions to an assessment shown on the Total
+     * Scores page.
+     *
+     * @param page The assessment's Total Scores page.
+     * @param id The assessment's id number
+     * @param selectId The id of the select statement being processed.
+     * @throws Exception
+     */
+    private void parseTotalScoresStudents( HtmlPage page, String id,
+                                           String selectId)
+                                                  throws Exception {
+        HtmlHeading3 h3 = page.getFirstByXPath("//form/h3");
+        msg("Processing submissions for: " + h3.asText(), Archiver.NORMAL);
+        HtmlTable scoreTable =
+                page.getHtmlElementById("editTotalResults:totalScoreTable");
+        List<?> scoreBodies = scoreTable.getHtmlElementsByTagName("tbody");
+        HtmlTableBody scoreBody = (HtmlTableBody) scoreBodies.get(0);
+        List<?> stAnchors = scoreBody.getHtmlElementsByTagName("a");
 
+        // Get index id's of links to Student submissions.
+        List<Integer> linkIndices = new ArrayList<Integer>();
+        List<String> students = new ArrayList<String>();
+        int index = 0;
+        for( Object obj: stAnchors ) {
+            HtmlAnchor link = (HtmlAnchor) obj;
+            // Skip internal page anchors.
+            if ( link.getOnClickAttribute().equals("") ) {
+                index++;
+                continue;
+            }
+            linkIndices.add(new Integer(index++));
+            students.add(link.getTextContent());
+        }
+
+        Map<String,String> urlUpdates = new HashMap<String,String>();
+        Iterator<String> itr = students.iterator();
+        for ( Integer linkIndex: linkIndices ) {
+            String student = itr.next();
+            msg("Getting submission for " + student, Archiver.NORMAL );
+            // Reload master page by getting tool master and then subpage.
+            HtmlPage mainPage = loadToolMainPage();;
+            HtmlSelect select = (HtmlSelect) mainPage.getElementById(selectId);
+            HtmlOption option = select.getOptionByValue("scores");
+            page = select.setSelectedAttribute(option, true);
+
+            scoreTable =
+                    page.getHtmlElementById("editTotalResults:totalScoreTable");
+            scoreBodies = scoreTable.getHtmlElementsByTagName("tbody");
+            scoreBody = (HtmlTableBody) scoreBodies.get(0);
+            stAnchors = scoreBody.getHtmlElementsByTagName("a");
+            HtmlAnchor link = (HtmlAnchor) stAnchors.get(linkIndex.intValue());
+
+            page = (HtmlPage) link.click();
+            HtmlInput input = page.getHtmlElementById("editStudentResults:gradingData");
+            String subId = input.getValueAttribute().trim();
+            String filename = "assessment-" + id + "-student-response-" + subId;
+            String filepath = getSubdirectory() + filename;
+
+            urlUpdates.put(subId, filename);
+            savePage(STUDENT_SUBMISSION, page, filepath);
+        }
+        getPageUrlUpdates().put("SCORES_MAIN", urlUpdates);
+
+        // Reload master page.
+        HtmlPage mainPage = loadToolMainPage();
+        HtmlSelect select = (HtmlSelect) mainPage.getElementById(selectId);
+        HtmlOption option = select.getOptionByValue("scores");
+        page = select.setSelectedAttribute(option, true);
+    }
+    /**
+     * Parse the main subpages of the Scores section.
+     *
+     * @param page
+     * @param id
+     * @throws Exception
+     */
     public void parseScoresSubpages( HtmlPage page, String id )
             throws Exception {
         Map<String,String> urlMap = new HashMap<String,String>();
@@ -273,7 +495,7 @@ public class SamigoParser extends ToolParser {
         links.put("Statistics", "-stats");
         links.put("Item", "-item-analysis");
 
-        // Search the
+        // Get the pages listed in the subpage nav.
         for ( String search: links.keySet()) {
             String suffix = links.get(search);
             List<?> navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
@@ -307,9 +529,39 @@ public class SamigoParser extends ToolParser {
     }
 
     @Override
+    public String modifySavedHtml(HtmlPage page, String html) {
+        Map<String,String> urlChanges;
+
+        String newHtml = html;
+        switch ( getPageSaveType() ) {
+            case SCORES_MAIN:
+                urlChanges = getPageUrlUpdates().get("SCORES_MAIN");
+                newHtml = ParsingUtils.replaceMatchingAnchors(newHtml, urlChanges,
+                        "[<]a href=\"[#]\" " +
+                        "title[=]\"View Student Answer\"[^>]*" +
+                        "forms\\['editTotalResults'\\]\\['gradingData'\\]\\.value[=]\\'",
+                        "\\'[^>]*[>]");
+                break;
+            case QUESTION_POOL_MAIN:
+                newHtml = newHtml.replaceAll("collapseAllRows[(][)];", "");
+                urlChanges = getPageUrlUpdates().get("QUESTION_POOL_MAIN");
+                newHtml = ParsingUtils.replaceMatchingAnchors( newHtml, urlChanges,
+                        "[<]a\\s+id\\s*=\\s*[\"']\\s*", "\\s*[\"'][^>]*[>]");
+                break;
+            case QUESTION_POOL_SUBPAGE:
+                urlChanges = getPageUrlUpdates().get("QUESTION_POOL_SUBPAGE");
+                newHtml = ParsingUtils.replaceMatchingAnchors( newHtml, urlChanges,
+                        "[<]a\\s+id\\s*=\\s*[\"']\\s*", "\\s*[\"'][^>]*[>]");
+                break;
+        }
+        return newHtml;
+    }
+
+   @Override
     public String addJavascript() throws Exception {
         String js = "";
         String script = "";
+
         switch ( getPageSaveType() ) {
             case MAIN:
                 Map<String,Map<String,String>> changes = getSelectChanges();
@@ -328,16 +580,17 @@ public class SamigoParser extends ToolParser {
                     script += "\\$(\"select#" + jSelectId + "\").hide().after(" +
                          "\"<span>" + links + "</span>\");\r\n";
                 }
-                js = ParsingUtils.addInlineJavaScript(script);
+                js += ParsingUtils.addInlineJavaScript(script);
                 break;
             case EDIT:
                 break;
             case SETTINGS:
                 script = "\\$(\"h4\").css(\"color\",\"red\");";
-                js = ParsingUtils.addInlineJavaScript(script);
+                js += ParsingUtils.addInlineJavaScript(script);
                 break;
             case SCORES_MAIN:
             case SCORES_SUBPAGE:
+            case STUDENT_SUBMISSION:
                 Map<String,String> links =
                         getPageUrlUpdates().get("SCORES_NAV");
                 String navBar = "";
@@ -350,9 +603,26 @@ public class SamigoParser extends ToolParser {
                             "'>" + label + "</a>";
                 }
                 script = "\\$(\"p.navViewAction\").html(\""+navBar+"\");";
-                js = ParsingUtils.addInlineJavaScript(script);
+                js += ParsingUtils.addInlineJavaScript(script);
+                break;
+            case QUESTION_POOL_MAIN:
+                script = "\\$('A.treefolder').addClass('treedoc').removeClass('treefolder');";
+                js += ParsingUtils.addInlineJavaScript(script);
                 break;
         }
+        String toolPage = getToolPageName();
+        script = "\\$('ul.navIntraTool a').each(function() {"
+                + "  var linkText = \\$(this).text().trim();"
+                + "  if ( linkText == 'Assessments' ) {"
+                + "    \\$(this).attr('href', '" + toolPage + "');"
+                + "    \\$(this).addClass('offline-link');"
+                + "  }"
+                + "  if ( linkText == 'Question Pools' ) {"
+                + "    \\$(this).attr('href', '" + toolPage + "-question-pool');"
+                + "    \\$(this).addClass('offline-link');"
+                + "  }"
+                + "});";
+        js += ParsingUtils.addInlineJavaScript(script);
         return js;
     }
 
@@ -399,5 +669,17 @@ public class SamigoParser extends ToolParser {
             pageUrlUpdates = new HashMap<String,Map<String,String>>();
         }
         return pageUrlUpdates;
+    }
+
+    public Map<String, String> getStudentScores() {
+        return studentScores;
+    }
+
+    public void setStudentScores(Map<String, String> studentScores) {
+        this.studentScores = studentScores;
+    }
+
+    public void setPageUrlUpdates(Map<String, Map<String, String>> pageUrlUpdates) {
+        this.pageUrlUpdates = pageUrlUpdates;
     }
 }
