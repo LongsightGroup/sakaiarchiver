@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.sakaiproject.util.archiver.parsers.RosterParser;
 import org.sakaiproject.util.archiver.parsers.SamigoParser;
 import org.sakaiproject.util.archiver.parsers.SyllabusParser;
 
+import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
@@ -43,7 +45,16 @@ public class Archiver {
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
 	public static final String DEBUG_TOOL = "samigo";
+//    public static final String DEBUG_TOOL = null;
 	public static final boolean DEBUG_SKIP_FILES = false;
+
+	// Option keys
+	public static final String ARCHIVE_DIR_BASE = "archive.dir.base";
+	public static final String SAKAI_BASE_URL = "sakai.base.url";
+	public static final String LOGIN_FORM_NAME = "login.form.name";
+	public static final String LOGIN_FORM_USER = "login.form.user";
+	public static final String LOGIN_FORM_SUBMIT = "login.form.submit";
+	public static final String LOGIN_FORM_PASSWORD = "login.form.password";
 
     // Input arguments and options
 	private String site;
@@ -60,14 +71,21 @@ public class Archiver {
     // Working vars.
     private HtmlPage homePage;
     private WebClient webClient;
+    private List<ToolParser> siteTools;
+    /**
+     * List of support pages (css, js, images, and the like) that have been
+     * saved already.
+     */
+    private List<String> savedPages;
+    private int outputVerbosity = DEBUG;
+    /**
+     * The host name of the site (used by JS for filtering.)
+     */
+    private String siteHost;
     /**
      * @Deprecated Was going to be used to produce navigation but not used now
      */
     private PageTree<PageInfo> sitePages;
-    private List<ToolParser> siteTools;
-    private List<String> savedPages;
-    private int outputVerbosity = DEBUG;
-    private String siteHost;
 
 	/**
 	 * Constructor with all the command line options.
@@ -142,6 +160,8 @@ public class Archiver {
     	}
         initWebClient();
         copyResources();
+        URL siteURL = new URL(getOption(SAKAI_BASE_URL));
+        setSiteHost(siteURL.getHost());
     }
     /**
      * Main method which creates the archive.
@@ -195,7 +215,7 @@ public class Archiver {
      * @throws IOException
      */
     public boolean initArchiveBasePath() throws IOException {
-    	setArchiveBasePath( getOption("archive.dir.base") + getSite() );
+    	setArchiveBasePath( getOption(ARCHIVE_DIR_BASE) + getSite() );
     	File base = new File(getArchiveBasePath());
     	if ( base.exists() ) {
     		FileUtils.deleteDirectory(base);
@@ -207,7 +227,7 @@ public class Archiver {
      * Initialize the WebClient
      */
     public void initWebClient() {
-        WebClient webClient = new WebClient();
+        WebClient webClient = new WebClient(BrowserVersion.FIREFOX_17);
         webClient.getCookieManager().setCookiesEnabled(true);
         webClient.getOptions().setRedirectEnabled(true);
         webClient.getOptions().setThrowExceptionOnScriptError(false);
@@ -230,13 +250,14 @@ public class Archiver {
     public boolean login(String site, String user, String pwd )
             throws Exception {
 
-    	String fullSite = getOption("sakai.base.url") + site;
+    	String fullSite = getOption(SAKAI_BASE_URL) + site;
+    	String loginURL = fullSite.replaceAll("portal/site", "portal/login/site");
 
-        HtmlPage page = getWebClient().getPage(fullSite);
-        HtmlForm form = page.getFormByName(getOption("login.form.name"));
-        HtmlSubmitInput button = form.getInputByName(getOption("login.form.submit"));
-        HtmlTextInput userField = form.getInputByName(getOption("login.form.user"));
-        HtmlPasswordInput pwdField = form.getInputByName(getOption("login.form.password"));
+        HtmlPage page = getWebClient().getPage(loginURL);
+        HtmlForm form = page.getFormByName(getOption(LOGIN_FORM_NAME));
+        HtmlSubmitInput button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
+        HtmlTextInput userField = form.getInputByName(getOption(LOGIN_FORM_USER));
+        HtmlPasswordInput pwdField = form.getInputByName(getOption(LOGIN_FORM_PASSWORD));
 
         userField.setValueAttribute(user);
         pwdField.setValueAttribute(pwd);
@@ -360,7 +381,7 @@ public class Archiver {
      * @return The base path ending with a /
      */
     public String getBasePath() {
-    	String path = getOption("archive.dir.base");
+    	String path = getOption(ARCHIVE_DIR_BASE);
     	if ( ! path.endsWith("/") ) {
     		path += "/";
     	}
