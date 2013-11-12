@@ -132,12 +132,12 @@ public class PageSaver {
 
 		// Add offline js and css
 		String replace = "";
+		String script = "var siteHost = '" + getArchiver().getSiteHost() + "';";
+		replace += ParsingUtils.addInlineJavaScript(script);
 		if ( ! html.contains("library/js/jquery.js")) {
-			replace +=
-                "<script src=\"../library/js/jquery.js\" language=\"JavaScript\" type=\"text/javascript\"></script>\r\n";
+			replace +=  ParsingUtils.addJavaScriptInclude("../library/js/jquery.js");
 		}
-		replace +=
-		  "<script type=\"text/javascript\" language=\"JavaScript\" src=\"../sakai-offline.js\"></script>\r\n" +
+		replace += ParsingUtils.addJavaScriptInclude("../sakai-offline.js") +
 		  "<link href=\"../sakai-offline.css\" type=\"text/css\" rel=\"stylesheet\" media=\"all\">\r\n";
         if ( parser != null ) {
             replace += parser.addJavascript();
@@ -199,7 +199,7 @@ if ( false && ext.equals("zip") ) {
 	               		Page filePage = null;
 	               		try {
 	               			filePage = anchor.openLinkInNewWindow();
-	               		} catch ( ClassCastException e ) {
+	               		} catch ( Exception e ) {
 	               			msg("Could not download file (does not exist?): " + href,
 	               				Archiver.WARNING);
 	               		}
