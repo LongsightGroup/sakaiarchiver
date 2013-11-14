@@ -28,7 +28,7 @@ public class AssignmentsParser extends ToolParser {
 	public static final String GRADE_PAGE = "grarep";
 	public static final String STUDENT_VIEW = "stuvie";
 
-	private String pageSaveType;
+	private String pageSaveStringType;
 	private Map<String,Map<String,String>> pageUrlUpdates;
 
 	public AssignmentsParser() {
@@ -76,7 +76,7 @@ public class AssignmentsParser extends ToolParser {
         String name = getSubdirectory() + getToolPageName();
         msg("Updating main assignments iframe: " + name + "(" +
                 assignments.getTitleText()+")", Archiver.NORMAL);
-        setPageSaveType(MAIN_PAGE);
+        setPageSaveStringType(MAIN_PAGE);
         savePage(assignments, name );
 	}
     /**
@@ -96,7 +96,7 @@ public class AssignmentsParser extends ToolParser {
                 "-" + STUDENT_VIEW;
 
         msg("Saving Students Assignment view page: " + name, Archiver.NORMAL);
-        setPageSaveType(STUDENT_VIEW);
+        setPageSaveStringType(STUDENT_VIEW);
         savePage( view, getSubdirectory() + name);
 
         return null;
@@ -119,7 +119,7 @@ public class AssignmentsParser extends ToolParser {
                 "-" + GRADE_PAGE;
 
         msg("Saving Grade Report view page: " + name, Archiver.NORMAL);
-        setPageSaveType(GRADE_PAGE);
+        setPageSaveStringType(GRADE_PAGE);
         savePage( view, getSubdirectory() + name);
 
         return null;
@@ -146,7 +146,7 @@ public class AssignmentsParser extends ToolParser {
                 "-" + BY_STUDENT;
 
         msg("Saving By Students view page: " + name, Archiver.NORMAL);
-        setPageSaveType(BY_STUDENT);
+        setPageSaveStringType(BY_STUDENT);
         savePage( view, getSubdirectory() + name);
 
         return null;
@@ -188,7 +188,7 @@ public class AssignmentsParser extends ToolParser {
 
                     msg("Saving submission page: " + localPath + "(" +
                             link.asText() + ")", Archiver.NORMAL);
-                    setPageSaveType("submission");
+                    setPageSaveStringType("submission");
                     savePage(submissionPage, localPath);
                     getArchiver().getSavedPages().add(localPath);
 
@@ -200,15 +200,8 @@ public class AssignmentsParser extends ToolParser {
     }
 
     @Override
-    public void savePage(HtmlPage page, String filepath) throws Exception {
-        PageSaver pageSaver = new PageSaver(getArchiver());
-        pageSaver.setParser(this);
-        pageSaver.save(page, filepath);
-    }
-
-    @Override
     public String modifySavedHtml(HtmlPage page, String html) {
-        String saveType = getPageSaveType();
+        String saveType = getPageSaveStringType();
         Map<String,String> urlMap = getPageUrlUpdates().get(saveType);
         String newHtml = html;
 
@@ -267,7 +260,7 @@ public class AssignmentsParser extends ToolParser {
     public String addJavascript() throws URISyntaxException {
 
         String js = "";
-        String saveType = getPageSaveType();
+        String saveType = getPageSaveStringType();
         if ( MAIN_PAGE.equals(saveType)  || BY_STUDENT.equals(saveType)) {
             String pageName = getToolPageName();
             js = "\\$(\"select#view\").hide().after(" +
@@ -322,7 +315,7 @@ public class AssignmentsParser extends ToolParser {
 
                     msg("Saving assignment page: " + localPath + "(" +
                             link.asText() + ")", Archiver.NORMAL);
-                    setPageSaveType("assignment");
+                    setPageSaveStringType("assignment");
                     savePage(assignmentPage, localPath);
                     getArchiver().getSavedPages().add(localPath);
 
@@ -380,12 +373,12 @@ public class AssignmentsParser extends ToolParser {
 		return TOOL_NAME;
 	}
 
-    public String getPageSaveType() {
-        return pageSaveType;
+    public String getPageSaveStringType() {
+        return pageSaveStringType;
     }
 
-    public void setPageSaveType(String pageSaveType) {
-        this.pageSaveType = pageSaveType;
+    public void setPageSaveStringType(String pageSaveType) {
+        this.pageSaveStringType = pageSaveType;
     }
     /**
      * Get the page url map.
