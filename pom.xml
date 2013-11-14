@@ -53,6 +53,7 @@
                   <include>*.css</include>
                   <include>*.js</include>
                   <include>*.png</include>
+                  <include>index.htm</include>
                 </includes>
             </resource>
         </resources>

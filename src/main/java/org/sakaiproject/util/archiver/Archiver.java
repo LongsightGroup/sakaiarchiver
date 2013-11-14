@@ -345,7 +345,7 @@ public class Archiver {
     public void copyResources() throws IOException {
         String[] resources = {
                 "sakai-offline.css", "sakai-offline.js",
-                "not-available-photo.png"
+                "not-available-photo.png", "index.htm"
         };
         File base = new File(getBasePath());
         for ( int i = 0; i < resources.length; i++ ) {
