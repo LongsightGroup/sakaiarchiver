@@ -10,7 +10,9 @@ import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 
@@ -28,6 +30,11 @@ public abstract class ToolParser {
 	private HtmlPage currentPage;
 	private HtmlPage parentPage;
     private String toolPageName;
+    /** Page type being saved */
+    private int pageSaveType;
+    /** Map of page type to URL change map */
+    private Map<String,Map<String,String>> pageUrlUpdates;
+
 
 	public ToolParser() {
 		initialize();
@@ -134,10 +141,25 @@ public abstract class ToolParser {
 	 */
     public void savePage(HtmlPage page, String filepath) throws Exception {
 		PageSaver pageSaver = new PageSaver(getArchiver());
+		pageSaver.setParser(this);
 		pageSaver.save(page, filepath);
         msg("Saved '" + page.getTitleText() + "' in " + filepath, Archiver.NORMAL);
     }
 
+    /**
+     * Set the page type and save the page.
+     *
+     * @param pageType Flag to let parsers know what type of page is being saved.
+     *        The type is generally parser specific.
+     * @param page
+     * @param filepath The path to the file to save the html in relative to the archive base.
+     * @throws Exception
+     */
+    public void savePage(int pageType, HtmlPage page, String filePath )
+            throws Exception {
+        setPageSaveType(pageType);
+        savePage(page, filePath);
+    }
     /**
      * Get the full system path to the directory the tool info will be stored.
      *
@@ -330,4 +352,28 @@ public abstract class ToolParser {
     public void setToolPageName(String toolPageName) {
         this.toolPageName = toolPageName;
     }
+    public int getPageSaveType() {
+        return pageSaveType;
+    }
+
+    public void setPageSaveType(int pageSaveType) {
+        this.pageSaveType = pageSaveType;
+    }
+    /**
+     * Get the page url map.
+     *
+     * @return Always returns an object.
+     */
+    public Map<String, Map<String,String>> getPageUrlUpdates() {
+        if ( pageUrlUpdates == null ) {
+            pageUrlUpdates = new HashMap<String,Map<String,String>>();
+        }
+        return pageUrlUpdates;
+    }
+
+    public void setPageUrlUpdates(Map<String, Map<String, String>> pageUrlUpdates) {
+        this.pageUrlUpdates = pageUrlUpdates;
+    }
+
+
 }
