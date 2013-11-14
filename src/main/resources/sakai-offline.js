@@ -1,5 +1,5 @@
 /* JS added to offline pages */
-var thisSite = new RegExp("/^http?:\/\/" + siteHost + "\/","i");
+var thisSite = new RegExp("^https?:\/\/" + siteHost + "\/","i");
 
 if (typeof jQuery != 'undefined') {
   (function($) {
@@ -13,7 +13,11 @@ if (typeof jQuery != 'undefined') {
             $(this).addClass("offline-link");
         }
         // Allow any urls to external sites.
-        if ( (/^http?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+        if ( (/^https?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+          $(this).addClass("offline-link");
+        }
+        // Allow mail to urls:
+        if ( (/^mailto:/i).test(href) ) {
           $(this).addClass("offline-link");
         }
       });
@@ -26,7 +30,11 @@ if (typeof jQuery != 'undefined') {
             return true;
         }
         // Allow any urls to external sites.
-        if ( (/^http?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+        if ( (/^https?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
+          return true;
+        }
+        // Allow mail to urls:
+        if ( (/^mailto:/i).test(href) ) {
           return true;
         }
         alert("Not available in offline mode");
