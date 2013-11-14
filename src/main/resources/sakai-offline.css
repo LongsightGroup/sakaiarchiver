@@ -1,11 +1,15 @@
 /* CSS added to archive pages */
 
-#mastLogin {
+#mastLogin,
+#syllabusInfo {
     background-color: darkred;
     color: gold;
     font-weight: bold;
     text-align: left;
     font-size: 120%;
+}
+#syllabusInfo {
+	padding: 5px 10px;
 }
 
 #toolMenu li a.icon-sakai-iframe-site:link,
