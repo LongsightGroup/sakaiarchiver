@@ -10,6 +10,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,10 @@ public class Archiver {
 	public static final int NORMAL = 0;
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
-//	public static final String DEBUG_TOOL = "samigo";
+	/** Flag to set home page + single tool parsing for quicker debugging */
+//	public static final String DEBUG_TOOL = "syllabus";
     public static final String DEBUG_TOOL = null;
+    /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
 
 	// Option keys
@@ -55,6 +58,8 @@ public class Archiver {
 	public static final String LOGIN_FORM_USER = "login.form.user";
 	public static final String LOGIN_FORM_SUBMIT = "login.form.submit";
 	public static final String LOGIN_FORM_PASSWORD = "login.form.password";
+	public static final String BINARY_FILE_EXTENSIONS = "binary.file.extensions";
+	public static final String DOWNLOAD_STUDENT_PICTURES = "download.student.pictures";
 
     // Input arguments and options
 	private String site;
@@ -63,6 +68,7 @@ public class Archiver {
     private String optionsFile;
     private Properties options;
     private String archiveBasePath;
+    private List<String> fileExtensions;
 
     // Look up maps
     private Map<String,String> classToTool;
@@ -254,7 +260,7 @@ public class Archiver {
     	String loginURL = fullSite.replaceAll("portal/site", "portal/login/site");
 
         HtmlPage page = getWebClient().getPage(loginURL);
-        HtmlForm form = page.getFormByName(getOption(LOGIN_FORM_NAME));
+        HtmlForm form = page.getFirstByXPath("//form");
         HtmlSubmitInput button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
         HtmlTextInput userField = form.getInputByName(getOption(LOGIN_FORM_USER));
         HtmlPasswordInput pwdField = form.getInputByName(getOption(LOGIN_FORM_PASSWORD));
@@ -337,24 +343,23 @@ public class Archiver {
      * @throws IOException
      */
     public void copyResources() throws IOException {
-    	File base = new File(getBasePath());
-    	File css = new File(base,"sakai-offline.css");
-    	File js = new File(base, "sakai-offline.js");
+        String[] resources = {
+                "sakai-offline.css", "sakai-offline.js",
+                "not-available-photo.png"
+        };
+        File base = new File(getBasePath());
+        for ( int i = 0; i < resources.length; i++ ) {
+            File resource = new File(base,resources[i]);
 
-    	OutputStream out = new FileOutputStream(css);
-    	InputStream in = Archiver.class.getClassLoader().getResourceAsStream("sakai-offline.css");
-    	try {
-    		IOUtils.copy(in, out);
-    	} finally {
-    		out.close();
-    	}
-    	out = new FileOutputStream(js);
-    	in = Archiver.class.getClassLoader().getResourceAsStream("sakai-offline.js");
-    	try {
-    		IOUtils.copy(in, out);
-    	} finally {
-    		out.close();
-    	}
+            OutputStream out = new FileOutputStream(resource);
+            InputStream in = Archiver.class.getClassLoader().
+                                getResourceAsStream(resources[i]);
+        	try {
+        		IOUtils.copy(in, out);
+        	} finally {
+        		out.close();
+        	}
+        }
     }
     /**
      * Save a file and associated files.
@@ -523,5 +528,20 @@ public class Archiver {
     }
     public void setSiteHost(String siteHost) {
         this.siteHost = siteHost;
+    }
+    /**
+     * Gets the file extensions that are considered to be files to download.
+     * Will populate itself if not set from the options file.
+     * @return
+     */
+    public List<String> getFileExtensions() {
+        if ( fileExtensions == null ) {
+            String[] exts = getOption(BINARY_FILE_EXTENSIONS).split("\\s*[,]\\s*");
+            fileExtensions = new ArrayList<String>(Arrays.asList(exts));
+        }
+        return fileExtensions;
+    }
+    public void setFileExtensions(List<String> fileExtensions) {
+        this.fileExtensions = fileExtensions;
     }
 }

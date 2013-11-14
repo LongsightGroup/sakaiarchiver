@@ -35,7 +35,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlLink;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlScript;
 /**
- * Save HtmlPage with shared css, javascript, iframes, and other information.
+ * Save HtmlPage with shared css, javascript, files, iframes, and other information.
  *
  * @author monroe
  */
@@ -52,7 +52,7 @@ public class PageSaver {
 		setArchiver(archiver);
 	}
 	/**
-	 * Save the page with Css, Javascript, and iframes.
+	 * Save the page with Css, Javascript, Files, and iframes.
 	 *
 	 * @param page The HTML page to save
 	 * @param filepath  The file path and file name relative to the archive base path.
@@ -74,6 +74,13 @@ public class PageSaver {
 		Map<String,String> iframeFiles = parseIframes(page, filepath);
 
 		String html = page.getWebResponse().getContentAsString();
+
+		// Let the parser modify the html before any other changes.
+        ToolParser parser = getParser();
+		if ( parser != null ) {
+	        html = parser.modifySavedHtml(page, html);
+	    }
+
 		// Update css links
 		for( String cssFile: cssFiles.keySet() ) {
 			String pattern = HREF_REGEX + cssFiles.get(cssFile).replaceAll("[?]", "[?]") + "\"";
@@ -128,13 +135,12 @@ public class PageSaver {
 			html = html.replaceAll(pattern, replace);
 		}
 
-        ToolParser parser = getParser();
-
 		// Add offline js and css
-		String replace = "";
+		String replace = "$1";
 		String script = "var siteHost = '" + getArchiver().getSiteHost() + "';";
 		replace += ParsingUtils.addInlineJavaScript(script);
-		if ( ! html.contains("library/js/jquery.js")) {
+		// Check if JQuery loaded by page.
+		if ( ! html.contains("library/js/jquery.js")  && ! html.contains("\"js/jquery-1.")) {
 			replace +=  ParsingUtils.addJavaScriptInclude("../library/js/jquery.js");
 		}
 		replace += ParsingUtils.addJavaScriptInclude("../sakai-offline.js") +
@@ -142,15 +148,19 @@ public class PageSaver {
         if ( parser != null ) {
             replace += parser.addJavascript();
         }
-	    replace += "</body>";
-		html = html.replaceAll("</body>",replace);
-
-		if ( parser != null ) {
-		    html = parser.modifySavedHtml(page, html);
-		}
+	    replace += "</body>$2";
+		html = html.replaceAll("(?si)^(.*)</body>(.*)$",replace);
 
 		saveContentString(html, filepath);
 	}
+	/**
+	 * Find any anchors that reference files and not other pages.
+	 *
+	 * @param page
+     * @param filepath The file path and file name relative to the archive base path.
+	 * @return A link update map with local path as key and URL as value.
+	 * @throws IOException
+	 */
 	public Map<String,String> parseFiles( HtmlPage page, String filepath ) throws IOException {
 		Map<String,String> files = new HashMap<String,String>();
 		File base = new File(getArchiver().getBasePath());
@@ -177,8 +187,15 @@ public class PageSaver {
             	relative = false;
             }
         	String ext = FilenameUtils.getExtension(localPath);
-        	// cfm is Columbia specific link.
-            if ( href.contains("/access/content")) {
+
+            // cfm is Columbia specific link.
+            if ( ext.equals("cfm")) {
+                continue;
+            }
+            // Get all files in /access/content or any that match binary files
+            // TODO: filter out external sites?
+            if ( href.contains("/access/content") ||
+                    getArchiver().getFileExtensions().contains(ext)) {
                 files.put(localPath, href);
                 if ( ! getArchiver().getSavedPages().contains(localPath)) {
 
@@ -193,9 +210,6 @@ public class PageSaver {
 	               	msg("Saving file (please wait): " + href + "  localpath=" +
 	               		file.getAbsolutePath(), Archiver.NORMAL);
 	               	if ( ! Archiver.DEBUG_SKIP_FILES ) {
-if ( false && ext.equals("zip") ) {
-	continue;
-}
 	               		Page filePage = null;
 	               		try {
 	               			filePage = anchor.openLinkInNewWindow();
@@ -220,13 +234,6 @@ if ( false && ext.equals("zip") ) {
 	            	getArchiver().getSavedPages().add(localPath);
                 }
             }
-        	if ( ext.equals("") || ext.equals("cfm")) {
-        		continue;
-        	}
-        	if ( ! ext.matches("htm[l]?") ) {
-        		//TODO: should any other links be considered files?
-        	}
-
         }
 		return files;
 	}
@@ -261,6 +268,7 @@ if ( false && ext.equals("zip") ) {
             	msg("Saving iframe: " + pagePath + name + "(" +
                     framePage.getTitleText()+")", Archiver.NORMAL);
             	PageSaver saver = new PageSaver(getArchiver());
+            	saver.setParser(getParser());
             	saver.save(framePage, pagePath + name );
             	getArchiver().getSavedPages().add(path);
             }
@@ -311,7 +319,11 @@ if ( false && ext.equals("zip") ) {
             		imageFile = new File(base, localPath);
             	}
             	imageFile.getParentFile().mkdirs();
-            	image.saveAs(imageFile);
+            	try {
+            	    image.saveAs(imageFile);
+            	} catch (IOException e ) {
+            	    msg("Could not save image: " + path + " Error was: '" + e.getMessage() + "'", Archiver.WARNING);
+            	}
 	            getArchiver().getSavedPages().add(localPath);
             }
         }
@@ -396,7 +408,7 @@ if ( false && ext.equals("zip") ) {
 		return;
 	}
 	/**
-	 * Parse the javascript includes and download them.
+	 * Parse the JavaScript includes and download them.
 	 *
 	 * @param page
 	 * @return An Map with key as localpath and value as original path
@@ -412,17 +424,31 @@ if ( false && ext.equals("zip") ) {
 
             String path = script.getSrcAttribute().trim();
             // The //: seems to come from an ie initializer optional code.
-            if (path == null || path.equals("") || path.equals("//:")) continue;
+            if (path == null || path.equals("") || path.equals("//:")) {
+                continue;
+            }
 
         	URL url = page.getFullyQualifiedUrl(path);
         	localPath = path.split("\\?")[0];
             if ( path.startsWith("/")) {
             	localPath = path.substring(1);
+                jsFiles.put(localPath, path);
             }
-            jsFiles.put(localPath, path);
-           	msg("Saving Javascript:  src path: " + path + "  localPath: " +
-                localPath, Archiver.VERBOSE);
+            else {
+                if ( getParser() != null ) {
+                    jsFiles.put(localPath, path);
+                    localPath = getParser().getSubdirectory() + localPath;
+                }
+                else {
+                    msg("Tool specific Javascript found but parser was null!",
+                            Archiver.WARNING);
+                    path = "/" + path;
+                    jsFiles.put(localPath, path);
+                }
+            }
             if ( ! getArchiver().getSavedPages().contains(path)) {
+                msg("Saving Javascript:  src path: " + path + "  localPath: " +
+                        localPath, Archiver.VERBOSE);
             	Page jsPage = getArchiver().getWebClient().getPage(url);
 	            saveContentString(jsPage.getWebResponse().getContentAsString(), localPath);
 	            getArchiver().getSavedPages().add(path);
