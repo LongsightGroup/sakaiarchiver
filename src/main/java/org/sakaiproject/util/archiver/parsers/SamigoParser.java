@@ -11,7 +11,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.sakaiproject.util.archiver.Archiver;
-import org.sakaiproject.util.archiver.PageSaver;
 import org.sakaiproject.util.archiver.ParsingUtils;
 import org.sakaiproject.util.archiver.ToolParser;
 
@@ -34,6 +33,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
  * TODO: Parse Score Statistics subpages (in scope?)
  * TODO: Parse Score Question Statistics subpages (in scope?)
  * TODO: Preview (in scope?)
+ * TODO: Use "Cancel" button to get back to student submission list faster?
  *
  * @author monroe
  *
@@ -54,8 +54,6 @@ public class SamigoParser extends ToolParser {
     public static final int QUESTION_POOL_QUESTION = 9;
 
 	private Map<String,Map<String,String>> selectChanges;
-	private int pageSaveType;
-	private Map<String,Map<String,String>> pageUrlUpdates;
 	private Map<String,String> studentScores;
 
 	public SamigoParser() {
@@ -73,9 +71,6 @@ public class SamigoParser extends ToolParser {
         setToolPageName(FilenameUtils.getName(new URI(getToolURL()).getPath()));
 
         // Get the main iframe
-//        List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
-//        String path = ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();
-//        HtmlPage mainPage = getArchiver().getWebClient().getPage(path);
         HtmlPage mainPage = loadToolMainPage();
 
         parseMainPage(mainPage);
@@ -377,7 +372,7 @@ public class SamigoParser extends ToolParser {
             HtmlInput input = scoresPage.getHtmlElementById("editTotalResults:publishedId");
             String id = input.getValueAttribute().trim();
 
-            parseScoresSubpages(scoresPage, id);
+            parseScoresSubpages(scoresPage, id, selectId);
             parseTotalScoresStudents(scoresPage, id, selectId );
 
             String filename = "assessment-" + id + "-scores";
@@ -441,7 +436,7 @@ public class SamigoParser extends ToolParser {
             String student = itr.next();
             msg("Getting submission for " + student, Archiver.NORMAL );
             // Reload master page by getting tool master and then subpage.
-            HtmlPage mainPage = loadToolMainPage();;
+            HtmlPage mainPage = loadToolMainPage();
             HtmlSelect select = (HtmlSelect) mainPage.getElementById(selectId);
             HtmlOption option = select.getOptionByValue("scores");
             page = select.setSelectedAttribute(option, true);
@@ -477,10 +472,11 @@ public class SamigoParser extends ToolParser {
      * @param id
      * @throws Exception
      */
-    public void parseScoresSubpages( HtmlPage page, String id )
+    public void parseScoresSubpages( HtmlPage page, String id, String selectId )
             throws Exception {
         Map<String,String> urlMap = new HashMap<String,String>();
 
+        //TODO:  Not i18n safe
         // Hack to get scores nav to work
         urlMap.put("Total Scores", "assessment-" + id + "-scores");
         urlMap.put("Submission Status", "assessment-" + id + "-substatus");
@@ -495,37 +491,44 @@ public class SamigoParser extends ToolParser {
         links.put("Statistics", "-stats");
         links.put("Item", "-item-analysis");
 
-        // Get the pages listed in the subpage nav.
-        for ( String search: links.keySet()) {
-            String suffix = links.get(search);
-            List<?> navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
-            HtmlParagraph p = (HtmlParagraph) navBar.get(0);
-            List<?> anchors = p.getHtmlElementsByTagName("a");
-            for ( Object obj: anchors ) {
-                HtmlAnchor anchor = (HtmlAnchor) obj;
-                String label = anchor.getTextContent();
+        // Get the subpage nav links.
+        Map<Integer,String> anchorIndices = new HashMap<Integer,String>();
+        List<?> navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
+        HtmlParagraph p = (HtmlParagraph) navBar.get(0);
+        List<?> anchors = p.getHtmlElementsByTagName("a");
+        int i = 0;
+        for ( Object obj: anchors ) {
+            HtmlAnchor anchor = (HtmlAnchor) obj;
+            String label = anchor.getTextContent();
+            for ( String search: links.keySet()) {
+                String suffix = links.get(search);
                 if (label.contains(search)) {
-                    page = (HtmlPage) anchor.click();
-                    String filename = "assessment-" + id + suffix;
-                    String filepath = getSubdirectory() + filename;
-                    savePage(SCORES_SUBPAGE, page, filepath);
+                    anchorIndices.put(new Integer(i),suffix);
+
                 }
             }
+            i++;
         }
-    }
 
-	public void savePage(int pageType, HtmlPage page, String filePath )
-	        throws Exception {
-	    setPageSaveType(pageType);
-	    savePage(page, filePath);
-	}
+        // Load and save subpages.
+        for( Integer index: anchorIndices.keySet()) {
+            String suffix = anchorIndices.get(index);
+            // Reload master page by getting tool master and then subpage.
+            HtmlPage mainPage = loadToolMainPage();;
+            HtmlSelect select = (HtmlSelect) mainPage.getElementById(selectId);
+            HtmlOption option = select.getOptionByValue("scores");
+            page = select.setSelectedAttribute(option, true);
 
-    @Override
-    public void savePage(HtmlPage page, String filepath) throws Exception {
-        PageSaver pageSaver = new PageSaver(getArchiver());
-        pageSaver.setParser(this);
-        pageSaver.save(page, filepath);
-        msg("Saved '" + page.getTitleText() + "' in " + filepath, Archiver.NORMAL);
+            navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
+            p = (HtmlParagraph) navBar.get(0);
+            anchors = p.getHtmlElementsByTagName("a");
+            HtmlAnchor anchor = (HtmlAnchor) anchors.get(index.intValue());
+
+            page = (HtmlPage) anchor.click();
+            String filename = "assessment-" + id + suffix;
+            String filepath = getSubdirectory() + filename;
+            savePage(SCORES_SUBPAGE, page, filepath);
+        }
     }
 
     @Override
@@ -652,25 +655,6 @@ public class SamigoParser extends ToolParser {
         this.selectChanges = selectChanges;
     }
 
-    public int getPageSaveType() {
-        return pageSaveType;
-    }
-
-    public void setPageSaveType(int pageSaveType) {
-        this.pageSaveType = pageSaveType;
-    }
-    /**
-     * Get the page url map.
-     *
-     * @return Always returns an object.
-     */
-    public Map<String, Map<String,String>> getPageUrlUpdates() {
-        if ( pageUrlUpdates == null ) {
-            pageUrlUpdates = new HashMap<String,Map<String,String>>();
-        }
-        return pageUrlUpdates;
-    }
-
     public Map<String, String> getStudentScores() {
         return studentScores;
     }
@@ -679,7 +663,4 @@ public class SamigoParser extends ToolParser {
         this.studentScores = studentScores;
     }
 
-    public void setPageUrlUpdates(Map<String, Map<String, String>> pageUrlUpdates) {
-        this.pageUrlUpdates = pageUrlUpdates;
-    }
 }
