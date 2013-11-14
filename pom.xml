@@ -52,6 +52,7 @@
                   <include>sakai-archiver.properties</include>
                   <include>*.css</include>
                   <include>*.js</include>
+                  <include>*.png</include>
                 </includes>
             </resource>
         </resources>
