@@ -75,6 +75,7 @@
                   <include>*.js</include>
                   <include>*.png</include>
                   <include>index.htm</include>
+                  <include>fileNotFound.htm</include>
                 </includes>
             </resource>
         </resources>
