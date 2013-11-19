@@ -12,6 +12,9 @@ if (typeof jQuery != 'undefined') {
         if ((/^[.][.][/]access[/]content/).test(href) ) {
             $(this).addClass("offline-link");
         }
+        if ((/^[.][.][/]fileNotFound.htm/).test(href) ) {
+          $(this).addClass("offline-link").addClass('file-not-found');
+        }
         // Allow any urls to external sites.
         if ( (/^https?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
           $(this).addClass("offline-link");
@@ -28,6 +31,11 @@ if (typeof jQuery != 'undefined') {
         // Allow file urls
         if ((/^[.][.][/]access[/]content/).test(href) ) {
             return true;
+        }
+        if ((/^[.][.][/]fileNotFound.htm/).test(href) ) {
+          alert("Sakai returned a 'File not found error' for this file. " +
+          		  "It could not be included in the archive.");
+          return false;
         }
         // Allow any urls to external sites.
         if ( (/^https?:\/\//i).test(href) &&  ! thisSite.test(href) ) {
@@ -91,7 +99,7 @@ if (typeof jQuery != 'undefined') {
       });
 */
       // Enable links marked with offline-link class.
-      $("a.offline-link").unbind('click');
+      $("a.offline-link").not('.file-not-found').unbind('click');
 
       $('#mastLogin').html('This is an offline archive of this course.  Only links in Red will work. NOTE: Works best in Firefox due to Javascript sandbox rules.');
     });

@@ -30,3 +30,7 @@ a.offline-link,
 a.offline-link:link {
 	color: red !important;
 }
+a.file-not-found,
+a.file-not-found:link {
+	text-decoration: line-through !important;
+}
