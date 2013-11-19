@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -211,7 +212,6 @@ public class PageSaver {
             // TODO: filter out external sites?
             if ( href.contains("/access/content") ||
                     getArchiver().getFileExtensions().contains(ext)) {
-                files.put(localPath, href);
                 if ( ! getArchiver().getSavedPages().contains(localPath)) {
 
                	    File file;
@@ -229,6 +229,7 @@ public class PageSaver {
 	               		try {
 	               			filePage = anchor.openLinkInNewWindow();
 	               		} catch ( Exception e ) {
+	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
 	               			msg("Could not download file (does not exist?): " + href,
 	               				Archiver.WARNING);
 	               		}
@@ -248,6 +249,7 @@ public class PageSaver {
 	               	}
 	            	getArchiver().getSavedPages().add(localPath);
                 }
+                files.put(localPath, href);
             }
         }
 		return files;
@@ -337,7 +339,10 @@ public class PageSaver {
             	try {
             	    image.saveAs(imageFile);
             	} catch (IOException e ) {
-            	    msg("Could not save image: " + path + " Error was: '" + e.getMessage() + "'", Archiver.WARNING);
+            	    localPath = "image-not-found.jpg?file=" +
+            	            URLEncoder.encode(path,"UTF-8");
+            	    msg("Could not save image: " + path + " Error was: '" +
+            	            e.getMessage() + "'", Archiver.WARNING);
             	}
 	            getArchiver().getSavedPages().add(localPath);
             }
