@@ -35,7 +35,22 @@ import com.gargoylesoftware.htmlunit.html.HtmlLink;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlScript;
 /**
- * Save HtmlPage with shared css, javascript, files, iframes, and other information.
+ * <p>Save HtmlPage with shared css, javascript, files, iframes, and other related
+ * information.  Will parse out any embedded CSS images and download them
+ * as well.  Optimized to check if file has already been downloaded via the
+ * Archiver.getSavedPages() List.</p>
+ *
+ * <p>The base directory for saved pages is defined by the Archiver options
+ * properties file archive.dir.base property.</p>
+ *
+ * </p>Binary files are determined based on either location in the resources
+ * space (url contains /access/content) or if the extension is in the
+ * binary.file.extensions property.</p>
+ *
+ * <p>Files referenced relative the the "root" will be relative to the base
+ * directory. Files relative to the page will be in the page's directory.</p>
+ *
+ * <p>Links will be adjusted to point to these new locations</p>
  *
  * @author monroe
  */
