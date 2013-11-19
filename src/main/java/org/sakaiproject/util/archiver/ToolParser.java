@@ -232,18 +232,17 @@ public abstract class ToolParser {
 	 * @throws MalformedURLException
 	 * @throws IOException
 	 */
-	public void resetTool()
+	public HtmlPage resetTool()
 	        throws FailingHttpStatusCodeException, MalformedURLException,
 	               IOException {
 	    String toolUrl = getToolURL();
 	    if ( toolUrl == null || ! toolUrl.contains("/tool/")) {
 	        msg("COULD NOT RESET TOOL: " + getToolName() +
 	                ".  The main url was invalid or null.", Archiver.ERROR);
-	        return;
+	        return null;
 	    }
 	    String resetUrl = toolUrl.replaceAll("/tool/", "/tool-reset/");
-//msg("resetURL=" + resetUrl, Archiver.DEBUG);
-        getArchiver().getWebClient().getPage(resetUrl);
+        return getArchiver().getWebClient().getPage(resetUrl);
 	}
 	/**
 	 * Load the tool's main (iframe) page
