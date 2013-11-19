@@ -52,7 +52,7 @@ public class Archiver {
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-//	public static final String DEBUG_TOOL = "forums";
+//	public static final String DEBUG_TOOL = "resources";
     public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
@@ -119,7 +119,7 @@ public class Archiver {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-    	if ( args == null || args.length == 0 ) {
+    	if ( args == null || args.length < 3 ) {
     		Archiver.usage("Missing arguments");
     		return;
     	}
@@ -138,7 +138,11 @@ public class Archiver {
         	Archiver.usage("Missing password argument");
         	return;
         }
-        Archiver archiver = new Archiver(site, user, password, args[3]);
+        String optionsFile = null;
+        if ( args.length == 4  ) {
+            optionsFile = args[3];
+        }
+        Archiver archiver = new Archiver(site, user, password, optionsFile);
         int rc = 0;
         try {
             archiver.initialize();
@@ -394,7 +398,8 @@ public class Archiver {
     public void copyResources() throws IOException {
         String[] resources = {
                 "sakai-offline.css", "sakai-offline.js",
-                "not-available-photo.png", "index.htm"
+                "not-available-photo.png", "index.htm",
+                "fileNotFound.htm"
         };
         File base = new File(getBasePath());
         for ( int i = 0; i < resources.length; i++ ) {
