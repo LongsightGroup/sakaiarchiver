@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -28,7 +27,7 @@ import org.sakaiproject.util.archiver.parsers.SamigoParser;
 import org.sakaiproject.util.archiver.parsers.SyllabusParser;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
@@ -37,6 +36,13 @@ import com.gargoylesoftware.htmlunit.html.HtmlPasswordInput;
 import com.gargoylesoftware.htmlunit.html.HtmlSubmitInput;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 
+/**
+ * The Sakai Archiver's main driver class.  Handles argument validation,
+ * configuration properties, state properties, login onto the site, identifying
+ * the tools used by the site, and calling the various parses.
+ *
+ * @author monroe
+ */
 public class Archiver {
 
     // Message and debug flags.
@@ -46,8 +52,8 @@ public class Archiver {
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-//	public static final String DEBUG_TOOL = "syllabus";
-    public static final String DEBUG_TOOL = null;
+	public static final String DEBUG_TOOL = "roster";
+//    public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
 
@@ -133,15 +139,18 @@ public class Archiver {
         	return;
         }
         Archiver archiver = new Archiver(site, user, password, args[3]);
+        int rc = 0;
         try {
             archiver.initialize();
             archiver.execute();
             archiver.finalize();
         } catch ( Exception e ) {
             e.printStackTrace();
+            rc = 1;
         } finally {
         	archiver.finalize();
         }
+        System.exit(rc);
     }
 	/**
 	 * Output an error message with usage information.
@@ -176,7 +185,7 @@ public class Archiver {
      */
     public void execute() throws Exception {
         if ( ! login(getSite(), getUser(), getPassword()) ) {
-        	msg("Error:  Could not log in or did not get to required site.", ERROR);
+        	msg("Error:  Could not log in or did not get required site URL.", ERROR);
         	return;
         }
         msg("Successfully logged in to site.", NORMAL);
@@ -186,7 +195,6 @@ public class Archiver {
         for( ToolParser tool: getSiteTools()) {
         	tool.parse(this);
         }
-//        System.out.println("Tree = " + getSitePages().toString());
     }
     /**
      * Clean up before exiting.
@@ -243,15 +251,23 @@ public class Archiver {
     /**
      * Log in to the site.
      *
+     * <p>Assumptions:
+     * <ul>
+     * <li>Login URL is of form portal/login/site/[Site].</li>
+     * <li>Login form is the first form on the page</li>
+     * <li>User name field has the name defined by the login.form.user property</li>
+     * <li>Password field has the name defined by the login.form.password property</li>
+     * <li>Submit button has the name defined by the login.form.submit property</li>
+     * </ul>
+     * </p>
+     *
      * TODO: Generalize this
      *
      * @param site Site URL
      * @param user
      * @param pwd
      * @return True if succeeded / False if not.
-     * @throws IOException
-     * @throws MalformedURLException
-     * @throws FailingHttpStatusCodeException
+     * @throws Exception
      */
     public boolean login(String site, String user, String pwd )
             throws Exception {
@@ -261,9 +277,35 @@ public class Archiver {
 
         HtmlPage page = getWebClient().getPage(loginURL);
         HtmlForm form = page.getFirstByXPath("//form");
-        HtmlSubmitInput button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
-        HtmlTextInput userField = form.getInputByName(getOption(LOGIN_FORM_USER));
-        HtmlPasswordInput pwdField = form.getInputByName(getOption(LOGIN_FORM_PASSWORD));
+
+        HtmlSubmitInput button;
+        try {
+            button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
+        } catch (ElementNotFoundException e ) {
+            msg("Could not find submit button on the login form with the name, '"
+                    + getOption(LOGIN_FORM_SUBMIT) + "' "
+                    + "Is login.form.submit value set correctly?", ERROR);
+            return false;
+        }
+        HtmlTextInput userField;
+        try {
+            userField = form.getInputByName(getOption(LOGIN_FORM_USER));
+        } catch (ElementNotFoundException e ) {
+            msg("Could not find the user name field on the login form with the name, '"
+                    + getOption(LOGIN_FORM_USER) + "' "
+                    + "Is login.form.user value set correctly?", ERROR);
+            return false;
+        }
+        HtmlPasswordInput pwdField;
+        try {
+            pwdField = form.getInputByName(getOption(LOGIN_FORM_PASSWORD));
+
+        } catch (ElementNotFoundException e ) {
+            msg("Could not find the password field on the login form with the name, '"
+                    + getOption(LOGIN_FORM_PASSWORD) + "' "
+                    + "Is login.form.password value set correctly?", ERROR);
+            return false;
+        }
 
         userField.setValueAttribute(user);
         pwdField.setValueAttribute(pwd);
@@ -273,6 +315,9 @@ public class Archiver {
         URI thisLocation = page.getUrl().toURI();
         URI wantedLocation = new URI(fullSite);
         if (! thisLocation.equals(wantedLocation)) {
+            msg("URL returned after login in attempt was not the expected "
+                    + "site's main URL.  URL found was: " +
+                    thisLocation.toString(), ERROR);
         	return false;
         }
         setHomePage(page);
