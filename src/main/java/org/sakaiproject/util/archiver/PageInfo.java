@@ -10,6 +10,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 /**
  * Information about pages that have been processed.
  *
+ * @deprecated Originally going to be used to create external navigation page.
  * @author monroe
  */
 public class PageInfo {

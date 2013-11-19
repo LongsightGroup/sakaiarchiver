@@ -5,8 +5,10 @@ import java.util.Collection;
 import java.util.HashMap;
 
 /**
-  * @param <T> Object's type in the tree.
-*/
+ *
+ * @deprecated Originally was going to be used to create navigation page.
+ * @param <T> Object's type in the tree.
+ */
 public class PageTree<T> {
 
   private T head;
