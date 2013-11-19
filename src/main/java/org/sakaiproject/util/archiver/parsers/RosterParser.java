@@ -13,17 +13,28 @@ import org.sakaiproject.util.archiver.Archiver;
 import org.sakaiproject.util.archiver.ParsingUtils;
 import org.sakaiproject.util.archiver.ToolParser;
 
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlImage;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTable;
 
+/**
+ * <p>Parse the Sakai Roster tool.</p>
+ *
+ * <p>Note that Student picture download can be enabled or disabled using
+ * the Sakai Archiver property, download.student.pictures.  Sometime
+ * offline student images can be against school or goverment regulations.</p>
+ *
+ * @author monroe
+ *
+ */
 public class RosterParser extends ToolParser {
 
 	public static final String TOOL_NAME = "roster";
 	public static final int MAIN_PAGE = 1;
 	public static final int OVERVIEW_PAGE = 2;
-
+	public static final int GROUPS_PAGE = 3;
 
 	public RosterParser() {
 		super();
@@ -53,21 +64,53 @@ public class RosterParser extends ToolParser {
         parseOverviewPage(mainPage);
 
         mainPage = loadToolMainPage();
+        parseGroupsPage(mainPage);
+
+        mainPage = loadToolMainPage();
         // Overwrite the default frame with the updated version.
         String name = getSubdirectory() + getToolPageName();
         msg("Updating main roster iframe: " + name + "(" +
                 mainPage.getTitleText()+")", Archiver.NORMAL);
         savePage(MAIN_PAGE, mainPage, name);
     }
+    /**
+     * Parse the groups page ( if it exists)
+     *
+     * @param page
+     * @throws Exception
+     */
+    public void parseGroupsPage( HtmlPage page ) throws Exception  {
+        HtmlAnchor link;
+        try {
+            link = page.getHtmlElementById("roster_form:_idJsp5");
+        } catch ( ElementNotFoundException e ) {
+            msg("Roster has no groups page", Archiver.NORMAL);
+            return;
+        }
+        page = link.click();
 
+        String name = getSubdirectory() + getToolPageName() + "-groups";
+        savePage(OVERVIEW_PAGE, page, name);
+    }
+    /**
+     * Parse the roster overview page
+     *
+     * @param page
+     * @throws Exception
+     */
     public void parseOverviewPage( HtmlPage page ) throws Exception {
         HtmlAnchor link = page.getHtmlElementById("roster_form:_idJsp4");
         page = link.click();
 
         String name = getSubdirectory() + getToolPageName() + "-overview";
-        savePage(OVERVIEW_PAGE, page, name);
+        savePage(GROUPS_PAGE, page, name);
     }
-
+    /**
+     * Parse the facebook page.
+     *
+     * @param page
+     * @throws IOException
+     */
     public void parseMainPage(HtmlPage page ) throws IOException {
         // Get the student images.
         HtmlTable table = (HtmlTable)
@@ -116,6 +159,7 @@ public class RosterParser extends ToolParser {
         Map<String,String> toolNav = new HashMap<String,String>();
         toolNav.put("roster_form:_idJsp3", getToolPageName());
         toolNav.put("roster_form:_idJsp4", getToolPageName() + "-overview");
+        toolNav.put("roster_form:_idJsp5", getToolPageName() + "-groups");
 
         switch ( getPageSaveType() ) {
             case MAIN_PAGE:
@@ -126,6 +170,7 @@ public class RosterParser extends ToolParser {
                 }
                 // Update tool nav for both pages.
             case OVERVIEW_PAGE:
+            case GROUPS_PAGE:
                 newHtml = ParsingUtils.replaceMatchingAnchors( newHtml, toolNav,
                         "[<]a\\s+[^>]*id\\s*=\\s*[\"']\\s*", "\\s*[\"'][^>]*[>]");
                 break;
