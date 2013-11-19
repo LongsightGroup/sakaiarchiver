@@ -77,7 +77,9 @@ public class SamigoParser extends ToolParser {
 
         // Reload the main page.
         mainPage = loadToolMainPage();
-        parseQuestionPools(mainPage);
+        if ( isQuestionPoolAllowed() ) {
+            parseQuestionPools(mainPage);
+        }
 
         // Overwrite the default frame with the "opened" version.
         String name = getSubdirectory() + getToolPageName();
@@ -619,12 +621,14 @@ public class SamigoParser extends ToolParser {
                 + "  if ( linkText == 'Assessments' ) {"
                 + "    \\$(this).attr('href', '" + toolPage + "');"
                 + "    \\$(this).addClass('offline-link');"
-                + "  }"
-                + "  if ( linkText == 'Question Pools' ) {"
-                + "    \\$(this).attr('href', '" + toolPage + "-question-pool');"
-                + "    \\$(this).addClass('offline-link');"
-                + "  }"
-                + "});";
+                + "  }";
+        if ( isQuestionPoolAllowed() ) {
+            script += "  if ( linkText == 'Question Pools' ) {"
+                   + "    \\$(this).attr('href', '" + toolPage + "-question-pool');"
+                   + "    \\$(this).addClass('offline-link');"
+                   + "  }";
+        }
+        script += "});";
         js += ParsingUtils.addInlineJavaScript(script);
         return js;
     }
@@ -661,6 +665,11 @@ public class SamigoParser extends ToolParser {
 
     public void setStudentScores(Map<String, String> studentScores) {
         this.studentScores = studentScores;
+    }
+
+    public boolean isQuestionPoolAllowed() {
+        return Boolean.parseBoolean(
+                getArchiver().getOption(Archiver.PARSE_QUESTION_POOL));
     }
 
 }

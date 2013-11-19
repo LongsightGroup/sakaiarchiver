@@ -52,8 +52,8 @@ public class Archiver {
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-//	public static final String DEBUG_TOOL = "resources";
-    public static final String DEBUG_TOOL = null;
+	public static final String DEBUG_TOOL = "samigo";
+//    public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
 
@@ -66,6 +66,7 @@ public class Archiver {
 	public static final String LOGIN_FORM_PASSWORD = "login.form.password";
 	public static final String BINARY_FILE_EXTENSIONS = "binary.file.extensions";
 	public static final String DOWNLOAD_STUDENT_PICTURES = "download.student.pictures";
+	public static final String PARSE_QUESTION_POOL = "parse.question.pool";
 
     // Input arguments and options
 	private String site;
