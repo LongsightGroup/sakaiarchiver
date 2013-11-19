@@ -52,8 +52,8 @@ public class Archiver {
 	public static final int DEBUG = 1;
 	public static final int VERBOSE = 2;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-	public static final String DEBUG_TOOL = "roster";
-//    public static final String DEBUG_TOOL = null;
+//	public static final String DEBUG_TOOL = "forums";
+    public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
 
@@ -147,8 +147,12 @@ public class Archiver {
         } catch ( Exception e ) {
             e.printStackTrace();
             rc = 1;
+            System.out.println("Sakai Archiver did not succeed!.");
         } finally {
         	archiver.finalize();
+        }
+        if ( rc == 0 ) {
+            System.out.println("Sakai Archiver finished successfully.");
         }
         System.exit(rc);
     }
