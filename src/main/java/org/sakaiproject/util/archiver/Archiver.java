@@ -240,8 +240,7 @@ public class Archiver {
      * @throws IOException
      */
     public boolean initArchiveBasePath() throws IOException {
-    	setArchiveBasePath( getOption(ARCHIVE_DIR_BASE) + getSite() );
-    	File base = new File(getArchiveBasePath());
+    	File base = new File(getBasePath());
     	if ( base.exists() ) {
     		FileUtils.deleteDirectory(base);
     	}
@@ -287,17 +286,38 @@ public class Archiver {
     	String loginURL = fullSite.replaceAll("portal/site", "portal/login/site");
 
         HtmlPage page = getWebClient().getPage(loginURL);
-        HtmlForm form = page.getFirstByXPath("//form");
+        HtmlForm form = null;
+        try {
+            form = page.getFormByName(getOption(LOGIN_FORM_NAME));
+        } catch ( ElementNotFoundException e ) {
+            msg("Could not find form with the name, '"
+                    + getOption(LOGIN_FORM_NAME) + "' specified by property, "
+                    + LOGIN_FORM_NAME + ". "
+                    + "Using first form found on page.", WARNING);
+            form = page.getFirstByXPath("//form");
+            if ( form == null ) {
+                msg("Could not find form on login page accessed by " + loginURL
+                        + "!", ERROR);
+                return false;
+            }
+        }
 
-        HtmlSubmitInput button;
+        HtmlSubmitInput button = null;
         try {
             button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
         } catch (ElementNotFoundException e ) {
-            msg("Could not find submit button on the login form with the name, '"
-                    + getOption(LOGIN_FORM_SUBMIT) + "' "
-                    + "Is login.form.submit value set correctly?", ERROR);
-            return false;
+            msg("Could not find submit button with the name, '"
+                    + getOption(LOGIN_FORM_SUBMIT) + "' specified by property, "
+                    + LOGIN_FORM_SUBMIT + ". "
+                    + "Using first submit button found on page.", WARNING);
+            button = page.getFirstByXPath("//form//input[@type='submit']");
+            if ( button == null ) {
+                msg("Could not find a submit button on login page accessed by "
+                        + loginURL + "!", ERROR);
+                return false;
+            }
         }
+
         HtmlTextInput userField;
         try {
             userField = form.getInputByName(getOption(LOGIN_FORM_USER));
@@ -438,12 +458,7 @@ public class Archiver {
      * @return The base path ending with a /
      */
     public String getBasePath() {
-    	String path = getOption(ARCHIVE_DIR_BASE);
-    	if ( ! path.endsWith("/") ) {
-    		path += "/";
-    	}
-    	path += getSite() + "/";
-    	return path;
+    	return getArchiveBasePath() + getSite() + "/";
     }
     public HtmlPage getHomePage() {
         return homePage;
@@ -523,8 +538,18 @@ public class Archiver {
 	public void setOptionsFile(String optionsFile) {
 		this.optionsFile = optionsFile;
 	}
-
+	/**
+	 * Get the normalized version of the archive.dir.base property.
+	 *
+	 * @return Returns the path with a / added if needed.
+	 */
 	public String getArchiveBasePath() {
+	    if ( archiveBasePath == null ) {
+	        archiveBasePath = getOption(ARCHIVE_DIR_BASE);
+	        if ( ! archiveBasePath.endsWith("/") ) {
+	            archiveBasePath += "/";
+	        }
+	    }
 		return archiveBasePath;
 	}
 
