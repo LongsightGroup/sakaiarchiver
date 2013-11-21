@@ -57,7 +57,12 @@ public class ForumsParser extends ToolParser {
                 mainPage.getTitleText()+")", Archiver.NORMAL);
         savePage(MAIN_PAGE, mainPage, name);
 	}
-
+	/**
+	 * Parse the List of Forums page
+	 *
+	 * @param page
+	 * @throws Exception
+	 */
 	public void parseMainPage( HtmlPage page ) throws Exception {
 
 	    // Get all topic link ids.
