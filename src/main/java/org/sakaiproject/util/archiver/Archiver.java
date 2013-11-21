@@ -230,7 +230,18 @@ public class Archiver {
     		options.load(new FileInputStream(path));
     	}
     	setOptions( options );
+    	normalizePathOptions(SAKAI_BASE_URL);
+    	normalizePathOptions(ARCHIVE_DIR_BASE);
     }
+
+    public void normalizePathOptions( String option ) {
+        String path = getOption(option);
+        if ( ! path.endsWith("/") ) {
+            path += "/";
+            getOptions().setProperty(option, path);
+        }
+    }
+
     /**
      * Set up the directory location used to save the site.  NOTE: if the site directory exists
      * it will be deleted.
