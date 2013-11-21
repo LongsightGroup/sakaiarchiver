@@ -20,6 +20,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.sakaiproject.util.archiver.parsers.AssignmentsParser;
 import org.sakaiproject.util.archiver.parsers.ForumsParser;
+import org.sakaiproject.util.archiver.parsers.GradeBookParser;
 import org.sakaiproject.util.archiver.parsers.HomeParser;
 import org.sakaiproject.util.archiver.parsers.ResourcesParser;
 import org.sakaiproject.util.archiver.parsers.RosterParser;
@@ -46,13 +47,13 @@ import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 public class Archiver {
 
     // Message and debug flags.
-	public static final int ERROR = -2;
-	public static final int WARNING = -1;
-	public static final int NORMAL = 0;
-	public static final int DEBUG = 1;
-	public static final int VERBOSE = 2;
+	public static final int ERROR = 0;
+	public static final int WARNING = 1;
+	public static final int NORMAL = 2;
+	public static final int DEBUG = 3;
+	public static final int VERBOSE = 4;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-//	public static final String DEBUG_TOOL = "samigo";
+//	public static final String DEBUG_TOOL = "gradebook";
     public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
@@ -67,6 +68,7 @@ public class Archiver {
 	public static final String BINARY_FILE_EXTENSIONS = "binary.file.extensions";
 	public static final String DOWNLOAD_STUDENT_PICTURES = "download.student.pictures";
 	public static final String PARSE_QUESTION_POOL = "parse.question.pool";
+	public static final String OUTPUT_VERBOSITY = "output.verbosity";
 
     // Input arguments and options
 	private String site;
@@ -90,7 +92,7 @@ public class Archiver {
      * saved already.
      */
     private List<String> savedPages;
-    private int outputVerbosity = DEBUG;
+    private int outputVerbosity = -1001;
     /**
      * The host name of the site (used by JS for filtering.)
      */
@@ -254,7 +256,7 @@ public class Archiver {
         webClient.getCookieManager().setCookiesEnabled(true);
         webClient.getOptions().setRedirectEnabled(true);
         webClient.getOptions().setThrowExceptionOnScriptError(false);
-        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.WARNING);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.SEVERE);
         setWebClient(webClient);
     }
     /**
@@ -369,6 +371,7 @@ public class Archiver {
     	classMap.put("icon-sakai-samigo", "samigo");
     	classMap.put("icon-sakai-assignment-grades", "assignments");
     	classMap.put("icon-sakai-site-roster", "roster");
+    	classMap.put("icon-sakai-gradebook-tool", "gradebook");
 
     	//TODO: Replace with tool specific classes!
     	Map<String,ToolParser> toolMap = getToolToParser();
@@ -379,16 +382,29 @@ public class Archiver {
     	toolMap.put("samigo", new SamigoParser());
     	toolMap.put("assignments", new AssignmentsParser());
     	toolMap.put("roster", new RosterParser());
+        toolMap.put("gradebook", new GradeBookParser());
     }
     /**
      * Output a message to stdout
      *
      * @param msg
-     * @param level The msg level (see Archiver flags)
+     * @param level The msg level (see Archiver flags / verbosityLevel)
      */
     public void msg(String msg, int level ) {
     	if ( level <= getOutputVerbosity() ) {
-    		System.out.println(msg);
+    	    String prefix = "";
+    	    switch( level ) {
+    	        case ERROR:
+    	            prefix = "ERROR:  ";
+    	            break;
+                case WARNING:
+                    prefix = "WARNING:  ";
+                    break;
+                case DEBUG:
+                    prefix = "DEBUG:  ";
+                    break;
+    	    }
+    		System.out.println(prefix + msg);
     	}
     }
     /**
@@ -417,25 +433,6 @@ public class Archiver {
         }
     }
     /**
-     * Save a file and associated files.
-     *
-     * @param name
-     * @throws IOException
-     */
-/*
-    public void dumpAnchors() {
-        List<HtmlAnchor> anchors = getPage().getAnchors();
-        Iterator<HtmlAnchor> iAnchors = anchors.iterator();
-        while(iAnchors.hasNext()) {
-            HtmlAnchor anchor = iAnchors.next();
-            System.out.print(anchor.getTextContent());
-            System.out.print(" => ");
-            System.out.print(anchor.getHrefAttribute());
-            System.out.println();
-        }
-    }
-*/
-    /**
      * Gets the absolute base path to the site archive.
      *
      * @return The base path ending with a /
@@ -463,18 +460,33 @@ public class Archiver {
     public void setWebClient(WebClient webClient) {
         this.webClient = webClient;
     }
+    /**
+     * Get the site argument value.
+     *
+     * @return
+     */
     public String getSite() {
         return site;
     }
     public void setSite(String site) {
         this.site = site;
     }
+    /**
+     * Get the user argument value.
+     *
+     * @return
+     */
     public String getUser() {
         return user;
     }
     public void setUser(String user) {
         this.user = user;
     }
+    /**
+     * Get the password argument value.
+     *
+     * @return
+     */
     public String getPassword() {
         return password;
     }
@@ -499,6 +511,11 @@ public class Archiver {
 		return getOptions().getProperty(key).trim();
 	}
 
+    /**
+     * Get the option file argument value.
+     *
+     * @return
+     */
 	public String getOptionsFile() {
 		return optionsFile;
 	}
@@ -572,7 +589,17 @@ public class Archiver {
 	public void setSavedPages(List<String> savedPages) {
 		this.savedPages = savedPages;
 	}
+	/**
+	 * Gets the output verbosity.  Will be set to the output.verbosity
+	 * property value if current value is less than -1000.
+	 *
+	 * @return
+	 */
 	public int getOutputVerbosity() {
+	    if ( outputVerbosity < -1000 ) {
+	        String verbosity = getOption(OUTPUT_VERBOSITY);
+	        outputVerbosity = Integer.parseInt(verbosity);
+	    }
 		return outputVerbosity;
 	}
 	public void setOutputVerbosity(int outputVerbosity) {
