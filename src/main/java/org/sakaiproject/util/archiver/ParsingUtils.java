@@ -134,4 +134,18 @@ public class ParsingUtils {
         }
         return html;
     }
+    /**
+     * Replace all links identified by the id key in the urlChange map with
+     * a link to the urlChanges value.
+     *
+     * @param html The html string to search for replacements
+     * @param urlChanges A map with the key equal to the anchor id and the new
+     *                   href as the value.
+     * @return  The modified string
+     */
+    public static String replaceMatchingAnchorsById( String html,
+                                Map<String,String> urlChanges) {
+       return replaceMatchingAnchors( html, urlChanges,
+               "[<]a\\s+[^>]*id\\s*=\\s*[\"']\\s*", "\\s*[\"'][^>]*[>]");
+    }
 }
