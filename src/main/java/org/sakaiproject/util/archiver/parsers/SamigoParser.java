@@ -14,6 +14,7 @@ import org.sakaiproject.util.archiver.Archiver;
 import org.sakaiproject.util.archiver.ParsingUtils;
 import org.sakaiproject.util.archiver.ToolParser;
 
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlDivision;
@@ -387,7 +388,14 @@ public class SamigoParser extends ToolParser {
             select = (HtmlSelect) workingPage.getElementById(selectId);
             option = select.getOptionByValue("settings_published");
             HtmlPage settingsPage = select.setSelectedAttribute(option, true);
-            input = settingsPage.getHtmlElementById("assessmentSettingsAction:assessmentId");
+            try {
+                input = settingsPage.getHtmlElementById(
+                            "assessmentSettingsAction:assessmentId");
+            } catch ( ElementNotFoundException e ) {
+                msg("Could not find Assessment id field on Assessment settings page!", Archiver.ERROR);
+                msg("Page=" + page.asText(), Archiver.DEBUG);
+                throw e;
+            }
             id = input.getValueAttribute().trim();
             filename = "assessment-" + id + "-settings";
             filepath = getSubdirectory() + filename;
