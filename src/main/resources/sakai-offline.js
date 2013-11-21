@@ -91,6 +91,11 @@ if (typeof jQuery != 'undefined') {
         document.location = '../syllabus/index.htm';
         return false;
       });
+      // Gradebook link
+      $('a.icon-sakai-gradebook-tool').unbind('click').click(function() {
+        document.location = '../gradebook/index.htm';
+        return false;
+      });
 /*
       $("a[href^='../access/content/']").each(function() {
         var href = $(this).attr("href");
