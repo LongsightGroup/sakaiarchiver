@@ -37,5 +37,7 @@ assembly:single
 
 This jar can be run by:
 
-java -jar [jarfile] [course site] [user id] [password]
+java -jar [jarfile] [course site] [user id] [password] [Optional properties file]
+
+
 
