@@ -116,9 +116,8 @@ public class SamigoParser extends ToolParser {
 	    HtmlTableBody body = (HtmlTableBody)
 	            table.getHtmlElementsByTagName("tbody").get(0);
 	    Map<String,String> poolIds = new HashMap<String,String>();
-	    List<?> poolAnchors = body.getHtmlElementsByTagName("a");
-	    for( Object obj: poolAnchors ) {
-	        HtmlAnchor anchor = (HtmlAnchor) obj;
+	    List<HtmlAnchor> poolAnchors = body.getHtmlElementsByTagName("a");
+	    for( HtmlAnchor anchor: poolAnchors ) {
 	        String id = anchor.getId();
 	        if ( id.matches("questionpool[:]TreeTable[:]\\d+[:]editlink") ) {
 	            String onClick = anchor.getOnClickAttribute();
@@ -167,10 +166,9 @@ public class SamigoParser extends ToolParser {
        // Get link id and question id for questions in pool
        List<?> sections = page.getByXPath("//form/div");
        HtmlDivision qDiv = (HtmlDivision) sections.get(2);
-       List<?> anchors = qDiv.getHtmlElementsByTagName("a");
+       List<HtmlAnchor> anchors = qDiv.getHtmlElementsByTagName("a");
        Map<String,String> qIds = new HashMap<String,String>();
-       for( Object obj: anchors ) {
-           HtmlAnchor link = (HtmlAnchor) obj;
+       for( HtmlAnchor link: anchors ) {
            String id = link.getId().trim();
            if ( id.matches("editform[:][^:]+[:][^:]+[:]modify")) {
                String onClick = link.getOnClickAttribute();
@@ -247,10 +245,9 @@ public class SamigoParser extends ToolParser {
 
 	    // Get a list of option select ids.
 
-	    List<?> selects = ((HtmlDivision)divs.get(0)).getHtmlElementsByTagName("select");
+	    List<HtmlSelect> selects = ((HtmlDivision)divs.get(0)).getHtmlElementsByTagName("select");
 	    List<String> selectIds = new ArrayList<String>();
-	    for( Object obj: selects ) {
-	        HtmlSelect select = (HtmlSelect) obj;
+	    for( HtmlSelect select: selects ) {
 	        selectIds.add(select.getId());
 	    }
 
@@ -309,10 +306,9 @@ public class SamigoParser extends ToolParser {
         }
 
         // Get a list of option select ids.
-        List<?> selects = ((HtmlTable)tables.get(0)).getHtmlElementsByTagName("select");
+        List<HtmlSelect> selects = ((HtmlTable)tables.get(0)).getHtmlElementsByTagName("select");
         List<String> selectIds = new ArrayList<String>();
-        for( Object obj: selects ) {
-            HtmlSelect select = (HtmlSelect) obj;
+        for( HtmlSelect select: selects ) {
             selectIds.add(select.getId());
         }
 
@@ -355,10 +351,9 @@ public class SamigoParser extends ToolParser {
         }
 
         // Get a list of option select ids.
-        List<?> selects = ((HtmlTable)tables.get(0)).getHtmlElementsByTagName("select");
+        List<HtmlSelect> selects = ((HtmlTable)tables.get(0)).getHtmlElementsByTagName("select");
         List<String> selectIds = new ArrayList<String>();
-        for( Object obj: selects ) {
-            HtmlSelect select = (HtmlSelect) obj;
+        for( HtmlSelect select: selects ) {
             selectIds.add(select.getId());
         }
 
@@ -421,16 +416,15 @@ public class SamigoParser extends ToolParser {
         msg("Processing submissions for: " + h3.asText(), Archiver.NORMAL);
         HtmlTable scoreTable =
                 page.getHtmlElementById("editTotalResults:totalScoreTable");
-        List<?> scoreBodies = scoreTable.getHtmlElementsByTagName("tbody");
-        HtmlTableBody scoreBody = (HtmlTableBody) scoreBodies.get(0);
-        List<?> stAnchors = scoreBody.getHtmlElementsByTagName("a");
+        List<HtmlTableBody> scoreBodies = scoreTable.getHtmlElementsByTagName("tbody");
+        HtmlTableBody scoreBody = scoreBodies.get(0);
+        List<HtmlAnchor> stAnchors = scoreBody.getHtmlElementsByTagName("a");
 
         // Get index id's of links to Student submissions.
         List<Integer> linkIndices = new ArrayList<Integer>();
         List<String> students = new ArrayList<String>();
         int index = 0;
-        for( Object obj: stAnchors ) {
-            HtmlAnchor link = (HtmlAnchor) obj;
+        for( HtmlAnchor link: stAnchors ) {
             // Skip internal page anchors.
             if ( link.getOnClickAttribute().equals("") ) {
                 index++;
@@ -454,9 +448,9 @@ public class SamigoParser extends ToolParser {
             scoreTable =
                     page.getHtmlElementById("editTotalResults:totalScoreTable");
             scoreBodies = scoreTable.getHtmlElementsByTagName("tbody");
-            scoreBody = (HtmlTableBody) scoreBodies.get(0);
+            scoreBody = scoreBodies.get(0);
             stAnchors = scoreBody.getHtmlElementsByTagName("a");
-            HtmlAnchor link = (HtmlAnchor) stAnchors.get(linkIndex.intValue());
+            HtmlAnchor link = stAnchors.get(linkIndex.intValue());
 
             page = (HtmlPage) link.click();
             HtmlInput input = page.getHtmlElementById("editStudentResults:gradingData");
@@ -505,10 +499,9 @@ public class SamigoParser extends ToolParser {
         Map<Integer,String> anchorIndices = new HashMap<Integer,String>();
         List<?> navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
         HtmlParagraph p = (HtmlParagraph) navBar.get(0);
-        List<?> anchors = p.getHtmlElementsByTagName("a");
+        List<HtmlAnchor> anchors = p.getHtmlElementsByTagName("a");
         int i = 0;
-        for ( Object obj: anchors ) {
-            HtmlAnchor anchor = (HtmlAnchor) obj;
+        for ( HtmlAnchor anchor: anchors ) {
             String label = anchor.getTextContent();
             for ( String search: links.keySet()) {
                 String suffix = links.get(search);
@@ -532,7 +525,7 @@ public class SamigoParser extends ToolParser {
             navBar = ParsingUtils.findElementWithCssClass(page, "p", "navViewAction");
             p = (HtmlParagraph) navBar.get(0);
             anchors = p.getHtmlElementsByTagName("a");
-            HtmlAnchor anchor = (HtmlAnchor) anchors.get(index.intValue());
+            HtmlAnchor anchor = anchors.get(index.intValue());
 
             page = (HtmlPage) anchor.click();
             String filename = "assessment-" + id + suffix;

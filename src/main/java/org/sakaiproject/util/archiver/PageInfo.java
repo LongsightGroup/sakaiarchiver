@@ -83,7 +83,7 @@ public class PageInfo {
 
 	@Override
 	public String toString() {
-		String eol = System.lineSeparator() + "  ";
+		String eol = System.getProperty("line.separator") + "  ";
 		String s = "PAGE INFO" + eol + "Title: " + getTitle() + eol +
 		  "URL: " + getUrl().toString() + eol;
 

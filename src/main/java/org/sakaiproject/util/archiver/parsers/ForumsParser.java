@@ -67,11 +67,10 @@ public class ForumsParser extends ToolParser {
 
 	    // Get all topic link ids.
 	    HtmlTable table = page.getHtmlElementById("msgForum:forums");
-	    List<?> anchors = table.getHtmlElementsByTagName("a");
+	    List<HtmlAnchor> anchors = table.getHtmlElementsByTagName("a");
 	    Map<String,String> urlChanges = new HashMap<String,String>();
 	    List<String> topicIds = new ArrayList<String>();
-	    for( Object obj: anchors ) {
-	        HtmlAnchor anchor = (HtmlAnchor) obj;
+	    for( HtmlAnchor anchor: anchors ) {
 	        String id = anchor.getId();
 	        if ( id != null &&
 	             id.matches("msgForum[:]forums[:]\\d+[:]topics[:]\\d+[:]topic_title")) {
@@ -82,7 +81,6 @@ public class ForumsParser extends ToolParser {
 	    // Load each topic page and process it.
 	    for( String id: topicIds ) {
 	        page = resetTool();  // Tool main
-//msg("page=" + page.asText(), Archiver.DEBUG);
 	        HtmlAnchor anchor = page.getHtmlElementById(id);
             String onClick = anchor.getOnClickAttribute();
             //document.forms['msgForum']['forumId'].value='5728';
@@ -106,7 +104,6 @@ public class ForumsParser extends ToolParser {
 	public void parseThread( HtmlPage page, String topicLinkId,
 	                         String forumId, String topicId ) throws Exception {
         // Get all thread link ids.
-//msg("page=" + page.asText(), Archiver.DEBUG);
         HtmlTable table;
         try {
             table = page.getHtmlElementById("msgForum:messagesInHierDataTable");
@@ -114,12 +111,11 @@ public class ForumsParser extends ToolParser {
             return; // No messages found
         }
 
-        List<?> anchors = table.getHtmlElementsByTagName("a");
+        List<HtmlAnchor> anchors = table.getHtmlElementsByTagName("a");
         Map<String,String> urlChanges = new HashMap<String,String>();
         List<Integer> threadIds = new ArrayList<Integer>();
         int index = 0;
-        for( Object obj: anchors ) {
-            HtmlAnchor anchor = (HtmlAnchor) obj;
+        for( HtmlAnchor anchor: anchors ) {
             String onClick = anchor.getOnClickAttribute();
             //document.forms['msgForum']['messageId'].value='60772';
             if ( onClick != null &&
@@ -138,7 +134,7 @@ public class ForumsParser extends ToolParser {
 
             table = page.getHtmlElementById("msgForum:messagesInHierDataTable");
             anchors = table.getHtmlElementsByTagName("a");
-            anchor = (HtmlAnchor) anchors.get(anchorIndex.intValue());
+            anchor = anchors.get(anchorIndex.intValue());
 
             onClick = anchor.getOnClickAttribute();
 
