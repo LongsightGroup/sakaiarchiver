@@ -56,7 +56,7 @@ if (typeof jQuery != 'undefined') {
       
 // Enable things that work offline.      
       
-      // Home link
+      // Home link 
       $('a.icon-sakai-iframe-site').unbind('click').click(function() {
           document.location = '../home/index.htm';
           return false;
@@ -96,6 +96,49 @@ if (typeof jQuery != 'undefined') {
         document.location = '../gradebook/index.htm';
         return false;
       });
+      
+      // Alternate tool links
+      // Home link 
+      $('span.icon-sakai-iframe-site').parent().unbind('click').click(function() {
+          document.location = '../home/index.htm';
+          return false;
+      });
+      // assignments link
+      $('span.icon-sakai-assignment-grades').parent().unbind('click').click(function() {
+        document.location = '../assignments/index.htm';
+        return false;
+      });
+      // forums link
+      $('span.icon-sakai-forums').parent().unbind('click').click(function() {
+        document.location = '../forums/index.htm';
+        return false;
+      });
+      // tests link
+      $('span.icon-sakai-samigo').parent().unbind('click').click(function() {
+        document.location = '../samigo/index.htm';
+        return false;
+      });
+      // resources link
+      $('span.icon-sakai-resources').parent().unbind('click').click(function() {
+        document.location = '../resources/index.htm';
+        return false;
+      });
+      // Roster link
+      $('span.icon-sakai-site-roster').parent().unbind('click').click(function() {
+        document.location = '../roster/index.htm';
+        return false;
+      });
+      // Syllabus link
+      $('span.icon-sakai-syllabus').parent().unbind('click').click(function() {
+        document.location = '../syllabus/index.htm';
+        return false;
+      });
+      // Gradebook link
+      $('span.icon-sakai-gradebook-tool').parent().unbind('click').click(function() {
+        document.location = '../gradebook/index.htm';
+        return false;
+      });
+
 /*
       $("a[href^='../access/content/']").each(function() {
         var href = $(this).attr("href");
@@ -106,7 +149,7 @@ if (typeof jQuery != 'undefined') {
       // Enable links marked with offline-link class.
       $("a.offline-link").not('.file-not-found').unbind('click');
 
-      $('#mastLogin').html('This is an offline archive of this course.  Only links in Red will work. NOTE: Works best in Firefox due to Javascript sandbox rules.');
+      $('div.siteNavWrap').html('<div id=mastLogin>This is an offline archive of this course.  Only links in Red will work. NOTE: Works best in Firefox due to Javascript sandbox rules.</div>');
     });
   })(jQuery);
 }

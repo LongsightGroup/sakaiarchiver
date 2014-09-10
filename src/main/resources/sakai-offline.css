@@ -7,6 +7,7 @@
     font-weight: bold;
     text-align: left;
     font-size: 120%;
+    float: none;
 }
 #syllabusInfo {
 	padding: 5px 10px;
@@ -28,6 +29,22 @@
 #toolMenu li a.icon-sakai-syllabus,
 #toolMenu li a.icon-sakai-gradebook-tool:link,
 #toolMenu li a.icon-sakai-gradebook-tool,
+#toolMenu li a span.icon-sakai-iframe-site:link,
+#toolMenu li a span.icon-sakai-iframe-site,
+#toolMenu li a span.icon-sakai-assignment-grades:link,
+#toolMenu li a span.icon-sakai-assignment-grades,
+#toolMenu li a span.icon-sakai-samigo:link,
+#toolMenu li a span.icon-sakai-samigo,
+#toolMenu li a span.icon-sakai-forums:link,
+#toolMenu li a span.icon-sakai-forums,
+#toolMenu li a span.icon-sakai-resources:link,
+#toolMenu li a span.icon-sakai-resources,
+#toolMenu li a span.icon-sakai-site-roster:link,
+#toolMenu li a span.icon-sakai-site-roster,
+#toolMenu li a span.icon-sakai-syllabus:link,
+#toolMenu li a span.icon-sakai-syllabus,
+#toolMenu li a span.icon-sakai-gradebook-tool:link,
+#toolMenu li a span.icon-sakai-gradebook-tool,
 a.offline-link,
 a.offline-link:link {
 	color: red !important;

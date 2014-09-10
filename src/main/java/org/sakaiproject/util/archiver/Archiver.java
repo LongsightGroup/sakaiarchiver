@@ -53,7 +53,7 @@ public class Archiver {
 	public static final int DEBUG = 3;
 	public static final int VERBOSE = 4;
 	/** Flag to set home page + single tool parsing for quicker debugging */
-//	public static final String DEBUG_TOOL = "gradebook";
+//	public static final String DEBUG_TOOL = "samigo";
     public static final String DEBUG_TOOL = null;
     /** Speed up debugging by skipping all binary file link downloads */
 	public static final boolean DEBUG_SKIP_FILES = false;
@@ -203,6 +203,9 @@ public class Archiver {
         PageInfo pInfo = new PageInfo( getHomePage());
     	setSitePages( new PageTree<PageInfo>( pInfo ) );
         locateTools();
+        msg("******** NOTE:", NORMAL);
+        msg("******** Please ignore any 'javascript.StrictErrorReporter' runtime errors.", NORMAL);
+        msg("******** These are just Javascript code designed to work with older browser that can't be parsed by newer Javascript engines.", NORMAL);
         for( ToolParser tool: getSiteTools()) {
         	tool.parse(this);
         }
@@ -301,15 +304,18 @@ public class Archiver {
         try {
             form = page.getFormByName(getOption(LOGIN_FORM_NAME));
         } catch ( ElementNotFoundException e ) {
-            msg("Could not find form with the name, '"
-                    + getOption(LOGIN_FORM_NAME) + "' specified by property, "
-                    + LOGIN_FORM_NAME + ". "
-                    + "Using first form found on page.", WARNING);
-            form = page.getFirstByXPath("//form");
+            form = (HtmlForm) page.getElementById(getOption(LOGIN_FORM_NAME));
             if ( form == null ) {
-                msg("Could not find form on login page accessed by " + loginURL
-                        + "!", ERROR);
-                return false;
+                msg("Could not find form with the name, '"
+                        + getOption(LOGIN_FORM_NAME) + "' specified by property, "
+                        + LOGIN_FORM_NAME + ". "
+                        + "Using first form found on page.", WARNING);
+                form = page.getFirstByXPath("//form");
+                if ( form == null ) {
+                    msg("Could not find form on login page accessed by " + loginURL
+                            + "!", ERROR);
+                    return false;
+                }
             }
         }
 
@@ -360,6 +366,7 @@ public class Archiver {
             msg("URL returned after login in attempt was not the expected "
                     + "site's main URL.  URL found was: " +
                     thisLocation.toString(), ERROR);
+            msg("This could be because the id and/or password for the site was not correct.", ERROR);
         	return false;
         }
         setHomePage(page);
@@ -376,8 +383,9 @@ public class Archiver {
     	parser.setMainURL(getHomePage().getUrl().toString());
     	getSiteTools().add(parser);
 
+    	List<?> anchors;
     	for ( String key: classMap.keySet() ) {
-    		List<?> anchors = page.getByXPath("//a[contains(@class,'" + key + "')]");
+    		anchors = page.getByXPath("//a[contains(@class,'" + key + "')]");
     		if ( ! anchors.isEmpty() ) {
     			HtmlAnchor tool = (HtmlAnchor) anchors.get(0);
     			String toolName = classMap.get(key);
@@ -387,6 +395,20 @@ public class Archiver {
     			parser = getToolToParser().get(toolName);
     			parser.setMainURL(tool.getHrefAttribute());
     			getSiteTools().add(parser);
+    		}
+    		// Tool icon classes may be on spans contained inside an anchor
+    		else {
+                anchors = page.getByXPath("//span[contains(@class,'" + key + "')]/parent::a");
+                if ( ! anchors.isEmpty() ) {
+                    HtmlAnchor tool = (HtmlAnchor) anchors.get(0);
+                    String toolName = classMap.get(key);
+                    if ( DEBUG_TOOL != null && ! toolName.equals(DEBUG_TOOL)) {
+                        continue;
+                    }
+                    parser = getToolToParser().get(toolName);
+                    parser.setMainURL(tool.getHrefAttribute());
+                    getSiteTools().add(parser);
+                }
     		}
     	}
     }

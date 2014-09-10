@@ -98,7 +98,7 @@ public class SamigoParser extends ToolParser {
 
 	    parsePending(page);
 	    parseActive(page);
-	    parseInactive(page);
+//	    parseInactive(page);
 	}
 	/**
 	 * Parse the Question Pools area of the Samigo tool.
@@ -236,16 +236,17 @@ public class SamigoParser extends ToolParser {
 	public void parsePending( HtmlPage page )
 	        throws Exception {
 
+	    msg("Parsing Samigo Assessments - Pending/Working", Archiver.DEBUG);
 	    //TODO:  Is this consistent enough?
-	    List<?> divs = page.getByXPath("//form/div/div[2]");
-	    if ( divs == null || divs.size() == 0 ) {
-	        msg("Could not find Pending Assessments area", Archiver.WARNING);
+	    HtmlTable table = (HtmlTable) page.getElementById("authorIndexForm:coreAssessments");
+	    if ( table == null ) {
+	        msg("Could not find Working/Pending Assessments area", Archiver.WARNING);
 	        return;
 	    }
 
 	    // Get a list of option select ids.
 
-	    List<HtmlSelect> selects = ((HtmlDivision)divs.get(0)).getHtmlElementsByTagName("select");
+	    List<HtmlSelect> selects = table.getHtmlElementsByTagName("select");
 	    List<String> selectIds = new ArrayList<String>();
 	    for( HtmlSelect select: selects ) {
 	        selectIds.add(select.getId());
@@ -298,15 +299,16 @@ public class SamigoParser extends ToolParser {
     public void parseActive( HtmlPage page )
             throws Exception {
 
+        msg("Parsing Samigo Assessments - Active", Archiver.DEBUG);
         //TODO:  Is this consistent enough?
-        List<?> tables = page.getByXPath("//form/div/div[3]/table");
-        if ( tables == null || tables.size() == 0 ) {
+        HtmlTable table = (HtmlTable) page.getElementById("authorIndexForm:published-assessments");
+        if ( table == null ) {
             msg("Could not find Active Assessments area", Archiver.WARNING);
             return;
         }
 
         // Get a list of option select ids.
-        List<HtmlSelect> selects = ((HtmlTable)tables.get(0)).getHtmlElementsByTagName("select");
+        List<HtmlSelect> selects = table.getHtmlElementsByTagName("select");
         List<String> selectIds = new ArrayList<String>();
         for( HtmlSelect select: selects ) {
             selectIds.add(select.getId());
@@ -326,7 +328,7 @@ public class SamigoParser extends ToolParser {
             HtmlPage editPage = select.setSelectedAttribute(option, true);
             HtmlInput input = editPage.getHtmlElementById("assessmentSettingsAction:assessmentId");
             String id = input.getValueAttribute().trim();
-            String filename = "assessment-" + id + "-edit";
+            String filename = "assessment-" + id + "-settings";
             String filepath = getSubdirectory() + filename;
             links.put("Settings", filename);
             savePage(SETTINGS, editPage, filepath);
@@ -339,10 +341,12 @@ public class SamigoParser extends ToolParser {
      *
      * @param page
      * @throws Exception
+     * @deprecated Active/inactive rolled into Published Copies tab.
      */
     public void parseInactive( HtmlPage page )
             throws Exception {
 
+        msg("Parsing Samigo Assessments - Inactive", Archiver.DEBUG);
         //TODO:  Is this consistent enough?
         List<?> tables = page.getByXPath("//form/div/div[3]/table[2]");
         if ( tables == null || tables.size() == 0 ) {
@@ -570,6 +574,7 @@ public class SamigoParser extends ToolParser {
 
         switch ( getPageSaveType() ) {
             case MAIN:
+                script += "\\$(\"#tabs a\").addClass(\"offline-link\");";
                 Map<String,Map<String,String>> changes = getSelectChanges();
                 for( String selectId: changes.keySet()) {
                     // Slashes need to be quad delimited to pass thru all regex stuff.

@@ -14,6 +14,7 @@ import org.sakaiproject.util.archiver.ParsingUtils;
 import org.sakaiproject.util.archiver.ToolParser;
 
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
 import com.gargoylesoftware.htmlunit.html.HtmlImage;
 import com.gargoylesoftware.htmlunit.html.HtmlInlineFrame;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -89,6 +90,8 @@ public class AssignmentsParser extends ToolParser {
      */
     public Map<String,String> parseStudentView( HtmlPage page )
             throws Exception {
+
+        msg("Parsing Assignments - Student View", Archiver.DEBUG);
 //TODO:  Handle paging (>200)
         HtmlPage view = getSubViewPage(page, STUDENT_VIEW);
 
@@ -113,6 +116,7 @@ public class AssignmentsParser extends ToolParser {
     public Map<String,String> parseGradePageView( HtmlPage page )
             throws Exception {
 //TODO:  Handle paging (>200)
+        msg("Parsing Assignments - Grade Report", Archiver.DEBUG);
         HtmlPage view = getSubViewPage(page, GRADE_PAGE);
 
         String name = FilenameUtils.getName(view.getUrl().getPath()) +
@@ -135,6 +139,7 @@ public class AssignmentsParser extends ToolParser {
      */
     public Map<String,String> parseByStudentsView( HtmlPage page )
             throws Exception {
+        msg("Parsing Assignments - Assignment List by Students view", Archiver.DEBUG);
         HtmlPage view = getSubViewPage(page, BY_STUDENT);
 
         view = expandPage(view);
@@ -286,6 +291,7 @@ public class AssignmentsParser extends ToolParser {
 	public Map<String,String> parseAssignmentPages(HtmlPage assignments)
 	        throws Exception {
 
+	    msg("Parsing Assignments - Assignment List view", Archiver.DEBUG);
 //TODO: handle paging (>200)
         Map<String,String> subPages = new HashMap<String,String>();
 
@@ -360,8 +366,35 @@ public class AssignmentsParser extends ToolParser {
         HtmlPage expandedPage = page;
         List<?> images = expandedPage.getByXPath("//img[contains(@src,'expand.gif')]");
         while ( images.size() > 0 ) {
-            HtmlImage image = (HtmlImage) images.get(0);
-            HtmlAnchor link = (HtmlAnchor) image.getParentNode();
+            // Find expand image toggles that don't have display: none;"
+            HtmlImage image = null;
+            for ( Object img : images ) {
+                if ( ! ((HtmlImage) img).getAttribute("style").contains("none") ) {
+                   image = (HtmlImage) img;
+                   break;
+                }
+            }
+            if ( image == null  ) {
+                break;
+            }
+//            HtmlImage image = (HtmlImage) images.get(0);
+            HtmlElement parent = (HtmlElement) image.getParentNode();
+            HtmlAnchor link = null;
+            if ( parent instanceof HtmlAnchor ) {
+                link = (HtmlAnchor) parent;
+            }
+            else {
+               List<?> links = parent.getByXPath("/a");
+               if ( links.size() > 0 ) {
+                   link = (HtmlAnchor) links.get(0);
+               }
+               else {
+                   expandedPage = parent.click();
+                   images = expandedPage.getByXPath("//img[contains(@src,'expand.gif')]");
+                   images.remove(0);
+                   continue;
+               }
+            }
             expandedPage = link.click();
             images = expandedPage.getByXPath("//img[contains(@src,'expand.gif')]");
         }
