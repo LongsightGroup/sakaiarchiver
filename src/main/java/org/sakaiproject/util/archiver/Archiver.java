@@ -159,6 +159,7 @@ public class Archiver {
     	System.err.println(msg);
     	System.err.println("Usage: SakaiArchiver site cookie (optional properties-file)");
     }
+
     /**
      * Call the various sub initialize methods.  Needs to be called prior to the execute method.
      *
@@ -256,12 +257,11 @@ public class Archiver {
      * @throws MalformedURLException 
      */
     public void initWebClient() throws MalformedURLException {
-        WebClient webClient = new WebClient(BrowserVersion.FIREFOX_17);
+        WebClient webClient = new WebClient(BrowserVersion.FIREFOX_38);
         
         CookieManager cookieManager = webClient.getCookieManager();
         cookieManager.setCookiesEnabled(true);
-        URL siteURL = new URL(getOption(SAKAI_BASE_URL));
-        Cookie sakaiCookie = new Cookie(siteURL.getHost(), "JSESSIONID", getCookie(), "/", 999999, true);
+        Cookie sakaiCookie = new Cookie(getSiteHost(), "JSESSIONID", getCookie(), "/", 999999, true);
         cookieManager.addCookie(sakaiCookie);
 
         webClient.getOptions().setRedirectEnabled(true);
