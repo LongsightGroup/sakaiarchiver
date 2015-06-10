@@ -73,7 +73,11 @@ public abstract class ToolParser {
      */
     public void parse() throws Exception {
         loadMainPage();
-        savePage(getCurrentPage(), getSubdirectory() + "index.htm");
+        
+        HtmlPage currentPage = getCurrentPage();
+        if (currentPage != null) {
+        	savePage(currentPage, getSubdirectory() + "index.htm");
+        }
     }
     /**
      * Clean up after parsing tool (if needed)
@@ -120,7 +124,7 @@ public abstract class ToolParser {
      * @throws IOException
      */
 	public void loadMainPage() throws FailingHttpStatusCodeException, MalformedURLException, IOException {
-		if ( getMainURL() == null ) {
+		if ( getMainURL() == null || getMainURL().trim().length() < 2 ) {
 			return;
 		}
 		HtmlPage page = loadPage(getMainURL());
@@ -178,7 +182,6 @@ public abstract class ToolParser {
     abstract public String getToolName();
 
 	public HtmlPage loadPage(String url) throws FailingHttpStatusCodeException, MalformedURLException, IOException {
-		System.out.println("zz03: " + url);
 		HtmlPage page = getArchiver().getWebClient().getPage(url);
 		return page;
 	}

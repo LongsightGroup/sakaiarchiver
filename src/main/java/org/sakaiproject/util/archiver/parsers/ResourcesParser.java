@@ -30,6 +30,7 @@ public class ResourcesParser extends ToolParser {
 	public void parse() throws Exception {
 		super.parse();
 		HtmlPage page = getCurrentPage();
+		if (page == null) return;
 		setParentPage(page);
 		List<?> elements = ParsingUtils.findElementWithCssClass(page, "iframe", "portletMainIframe");
 		String path = ((HtmlInlineFrame) elements.get(0)).getSrcAttribute();

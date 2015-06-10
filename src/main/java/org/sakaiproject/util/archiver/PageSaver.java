@@ -210,8 +210,7 @@ public class PageSaver {
             }
             // Get all files in /access/content or any that match binary files
             // TODO: filter out external sites?
-            if ( href.contains("/access/content") ||
-                    getArchiver().getFileExtensions().contains(ext)) {
+            if ( href.contains("/access/content") || getArchiver().getFileExtensions().contains(ext)) {
                 if ( ! getArchiver().getSavedPages().contains(localPath)) {
 
                	    File file;
@@ -222,13 +221,13 @@ public class PageSaver {
 	               		file = new File(base, localPath);
 	               	}
 	               	file.getParentFile().mkdirs();
-	               	msg("Saving file (please wait): " + href + "  localpath=" +
-	               		file.getAbsolutePath(), Archiver.NORMAL);
+	               	msg("Saving file: " + href + "  localpath=" + file.getAbsolutePath(), Archiver.NORMAL);
 	               	if ( ! Archiver.DEBUG_SKIP_FILES ) {
 	               		Page filePage = null;
 	               		try {
 	               			filePage = anchor.openLinkInNewWindow();
 	               		} catch ( Exception e ) {
+	               			e.printStackTrace();
 	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
 	               			msg("Could not download file: " + href, Archiver.WARNING);
 	               		}
@@ -239,6 +238,7 @@ public class PageSaver {
 		            		    long size = IOUtils.copyLarge(in, out);
 		            		    msg("File size: " + size, Archiver.NORMAL);
 		            	    } finally {
+		            	    	in.close();
 		            		    out.close();
 		            	    }
 	               		}

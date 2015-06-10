@@ -172,19 +172,21 @@ public class Archiver {
     		msg("Could not initialize the archive base location: " + getArchiveBasePath(), ERROR);
     		return;
     	}
-        initWebClient();
-        copyResources();
-        
+
         // Set the base url for sites
         String baseURL = getOption(SAKAI_BASE_URL);
         URL siteURL = new URL(baseURL);
         setSiteHost(siteURL.getHost());
-        
+
+        initWebClient();
+        copyResources();
+
         // Set the home page to start from
-        String homeURL = baseURL.replaceAll("portal/site", "portal");
+        String homeURL = baseURL + getSite();
         HtmlPage page = getWebClient().getPage(homeURL);
         setHomePage(page);
     }
+
     /**
      * Main method which creates the archive.
      *
