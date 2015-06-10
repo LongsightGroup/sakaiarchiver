@@ -18,13 +18,12 @@ sakai.base.url = https://sakainightly.cc.columbia.edu/portal/site/
 
 To run using maven use:
 
-mvn exec:java -Dsite=[course site] -Duser=[user id] -Dpassword=[password]
+mvn exec:java -Dsite=[course site] -Dcookie=[cookie id]
 
 Where:
 
 Course site is the Sakai course site from the url, e.g. ADMNT2012_01_2012_02.
-User id is the Sakai user to log in as
-Password is the user's password.
+Cookie is the JSESSIONID copied from your browser (use Firebug in Firefox).
 
 NOTE: 
 
@@ -37,7 +36,7 @@ assembly:single
 
 This jar can be run by:
 
-java -jar [jarfile] [course site] [user id] [password] [Optional properties file]
+java -jar [jarfile] [course site] [cookie id] [Optional properties file]
 
 
 

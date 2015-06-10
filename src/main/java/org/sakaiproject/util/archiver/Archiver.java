@@ -6,7 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,18 +28,15 @@ import org.sakaiproject.util.archiver.parsers.SamigoParser;
 import org.sakaiproject.util.archiver.parsers.SyllabusParser;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
+import com.gargoylesoftware.htmlunit.CookieManager;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlPasswordInput;
-import com.gargoylesoftware.htmlunit.html.HtmlSubmitInput;
-import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
+import com.gargoylesoftware.htmlunit.util.Cookie;
 
 /**
  * The Sakai Archiver's main driver class.  Handles argument validation,
- * configuration properties, state properties, login onto the site, identifying
+ * configuration properties, state properties, identifying
  * the tools used by the site, and calling the various parses.
  *
  * @author monroe
@@ -61,10 +58,6 @@ public class Archiver {
 	// Option keys
 	public static final String ARCHIVE_DIR_BASE = "archive.dir.base";
 	public static final String SAKAI_BASE_URL = "sakai.base.url";
-	public static final String LOGIN_FORM_NAME = "login.form.name";
-	public static final String LOGIN_FORM_USER = "login.form.user";
-	public static final String LOGIN_FORM_SUBMIT = "login.form.submit";
-	public static final String LOGIN_FORM_PASSWORD = "login.form.password";
 	public static final String BINARY_FILE_EXTENSIONS = "binary.file.extensions";
 	public static final String DOWNLOAD_STUDENT_PICTURES = "download.student.pictures";
 	public static final String PARSE_QUESTION_POOL = "parse.question.pool";
@@ -72,8 +65,7 @@ public class Archiver {
 
     // Input arguments and options
 	private String site;
-    private String user;
-    private String password;
+    private String cookie;
     private String optionsFile;
     private Properties options;
     private String archiveBasePath;
@@ -110,19 +102,19 @@ public class Archiver {
 	 * @param password
 	 * @param optionsFile
 	 */
-    public Archiver( String site, String user, String password, String optionsFile ) {
+    public Archiver( String site, String cookie, String optionsFile ) {
         setSite(site);
-        setUser(user);
-        setPassword(password);
+        setCookie(cookie);
         setOptionsFile(optionsFile);
     }
+
 	/**
 	 * Standard java command start point.
 	 *
 	 * @param args
 	 */
 	public static void main(String[] args) {
-    	if ( args == null || args.length < 3 ) {
+    	if ( args == null || args.length < 2 ) {
     		Archiver.usage("Missing arguments");
     		return;
     	}
@@ -131,21 +123,16 @@ public class Archiver {
         	Archiver.usage("Missing site argument");
         	return;
         }
-        String user = args[1];
-        if ( user == null ) {
-        	Archiver.usage("Missing user argument");
-        	return;
-        }
-        String password = args[2];
-        if ( password == null ) {
-        	Archiver.usage("Missing password argument");
+        String cookie = args[1];
+        if ( cookie == null ) {
+        	Archiver.usage("Missing cookie argument");
         	return;
         }
         String optionsFile = null;
-        if ( args.length == 4  ) {
-            optionsFile = args[3];
+        if ( args.length == 3  ) {
+            optionsFile = args[2];
         }
-        Archiver archiver = new Archiver(site, user, password, optionsFile);
+        Archiver archiver = new Archiver(site, cookie, optionsFile);
         int rc = 0;
         try {
             archiver.initialize();
@@ -170,7 +157,7 @@ public class Archiver {
 	 */
     static public void usage( String msg ) {
     	System.err.println(msg);
-    	System.err.println("Usage:  SakaiArchiver site user password (optional properties-file)");
+    	System.err.println("Usage: SakaiArchiver site cookie (optional properties-file)");
     }
     /**
      * Call the various sub initialize methods.  Needs to be called prior to the execute method.
@@ -186,8 +173,16 @@ public class Archiver {
     	}
         initWebClient();
         copyResources();
-        URL siteURL = new URL(getOption(SAKAI_BASE_URL));
+        
+        // Set the base url for sites
+        String baseURL = getOption(SAKAI_BASE_URL);
+        URL siteURL = new URL(baseURL);
         setSiteHost(siteURL.getHost());
+        
+        // Set the home page to start from
+        String homeURL = baseURL.replaceAll("portal/site", "portal");
+        HtmlPage page = getWebClient().getPage(homeURL);
+        setHomePage(page);
     }
     /**
      * Main method which creates the archive.
@@ -195,12 +190,7 @@ public class Archiver {
      * @throws Exception
      */
     public void execute() throws Exception {
-        if ( ! login(getSite(), getUser(), getPassword()) ) {
-        	msg("Error:  Could not log in or did not get required site URL.", ERROR);
-        	return;
-        }
-        msg("Successfully logged in to site.", NORMAL);
-        PageInfo pInfo = new PageInfo( getHomePage());
+        PageInfo pInfo = new PageInfo( getHomePage() );
     	setSitePages( new PageTree<PageInfo>( pInfo ) );
         locateTools();
         msg("******** NOTE:", NORMAL);
@@ -217,7 +207,7 @@ public class Archiver {
     	getWebClient().closeAllWindows();
     }
     /**
-     * Loads the options which define the login form, archive location, base sakai URL, and
+     * Loads the options which define the archive location, base sakai URL, and
      * the like.
      *
      * @param path Path to the properties file.  If null, the sakai-archiver.properties will be
@@ -263,115 +253,23 @@ public class Archiver {
     }
     /**
      * Initialize the WebClient
+     * @throws MalformedURLException 
      */
-    public void initWebClient() {
+    public void initWebClient() throws MalformedURLException {
         WebClient webClient = new WebClient(BrowserVersion.FIREFOX_17);
-        webClient.getCookieManager().setCookiesEnabled(true);
+        
+        CookieManager cookieManager = webClient.getCookieManager();
+        cookieManager.setCookiesEnabled(true);
+        URL siteURL = new URL(getOption(SAKAI_BASE_URL));
+        Cookie sakaiCookie = new Cookie(siteURL.getHost(), "JSESSIONID", getCookie(), "/", 999999, true);
+        cookieManager.addCookie(sakaiCookie);
+
         webClient.getOptions().setRedirectEnabled(true);
         webClient.getOptions().setThrowExceptionOnScriptError(false);
         java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.SEVERE);
         setWebClient(webClient);
     }
-    /**
-     * Log in to the site.
-     *
-     * <p>Assumptions:
-     * <ul>
-     * <li>Login URL is of form portal/login/site/[Site].</li>
-     * <li>Login form is the first form on the page</li>
-     * <li>User name field has the name defined by the login.form.user property</li>
-     * <li>Password field has the name defined by the login.form.password property</li>
-     * <li>Submit button has the name defined by the login.form.submit property</li>
-     * </ul>
-     * </p>
-     *
-     * TODO: Generalize this
-     *
-     * @param site Site URL
-     * @param user
-     * @param pwd
-     * @return True if succeeded / False if not.
-     * @throws Exception
-     */
-    public boolean login(String site, String user, String pwd )
-            throws Exception {
 
-    	String fullSite = getOption(SAKAI_BASE_URL) + site;
-    	String loginURL = fullSite.replaceAll("portal/site", "portal/login/site");
-
-        HtmlPage page = getWebClient().getPage(loginURL);
-        HtmlForm form = null;
-        try {
-            form = page.getFormByName(getOption(LOGIN_FORM_NAME));
-        } catch ( ElementNotFoundException e ) {
-            form = (HtmlForm) page.getElementById(getOption(LOGIN_FORM_NAME));
-            if ( form == null ) {
-                msg("Could not find form with the name, '"
-                        + getOption(LOGIN_FORM_NAME) + "' specified by property, "
-                        + LOGIN_FORM_NAME + ". "
-                        + "Using first form found on page.", WARNING);
-                form = page.getFirstByXPath("//form");
-                if ( form == null ) {
-                    msg("Could not find form on login page accessed by " + loginURL
-                            + "!", ERROR);
-                    return false;
-                }
-            }
-        }
-
-        HtmlSubmitInput button = null;
-        try {
-            button = form.getInputByName(getOption(LOGIN_FORM_SUBMIT));
-        } catch (ElementNotFoundException e ) {
-            msg("Could not find submit button with the name, '"
-                    + getOption(LOGIN_FORM_SUBMIT) + "' specified by property, "
-                    + LOGIN_FORM_SUBMIT + ". "
-                    + "Using first submit button found on page.", WARNING);
-            button = page.getFirstByXPath("//form//input[@type='submit']");
-            if ( button == null ) {
-                msg("Could not find a submit button on login page accessed by "
-                        + loginURL + "!", ERROR);
-                return false;
-            }
-        }
-
-        HtmlTextInput userField;
-        try {
-            userField = form.getInputByName(getOption(LOGIN_FORM_USER));
-        } catch (ElementNotFoundException e ) {
-            msg("Could not find the user name field on the login form with the name, '"
-                    + getOption(LOGIN_FORM_USER) + "' "
-                    + "Is login.form.user value set correctly?", ERROR);
-            return false;
-        }
-        HtmlPasswordInput pwdField;
-        try {
-            pwdField = form.getInputByName(getOption(LOGIN_FORM_PASSWORD));
-
-        } catch (ElementNotFoundException e ) {
-            msg("Could not find the password field on the login form with the name, '"
-                    + getOption(LOGIN_FORM_PASSWORD) + "' "
-                    + "Is login.form.password value set correctly?", ERROR);
-            return false;
-        }
-
-        userField.setValueAttribute(user);
-        pwdField.setValueAttribute(pwd);
-
-        page = button.click();
-
-        URI thisLocation = page.getUrl().toURI();
-        URI wantedLocation = new URI(fullSite);
-        if (! thisLocation.equals(wantedLocation)) {
-            msg("URL returned after login in attempt was not the expected "
-                    + "site's main URL.  URL found was: " +
-                    thisLocation.toString(), ERROR);
-            msg("This could be because the id and/or password for the site was not correct.", ERROR);
-        	return false;
-        }
-        setHomePage(page);
-        return true;
-    }
     /**
      * Search the current homePage to find the URL to the applicable tools.
      */
@@ -524,22 +422,11 @@ public class Archiver {
      *
      * @return
      */
-    public String getUser() {
-        return user;
+    public String getCookie() {
+        return cookie;
     }
-    public void setUser(String user) {
-        this.user = user;
-    }
-    /**
-     * Get the password argument value.
-     *
-     * @return
-     */
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
+    public void setCookie(String cookie) {
+        this.cookie = cookie;
     }
 
 	public Properties getOptions() {

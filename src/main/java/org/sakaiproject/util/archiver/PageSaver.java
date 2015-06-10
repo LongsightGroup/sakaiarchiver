@@ -230,8 +230,7 @@ public class PageSaver {
 	               			filePage = anchor.openLinkInNewWindow();
 	               		} catch ( Exception e ) {
 	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
-	               			msg("Could not download file (does not exist?): " + href,
-	               				Archiver.WARNING);
+	               			msg("Could not download file: " + href, Archiver.WARNING);
 	               		}
 	               		if ( filePage != null ) {
 		               	    InputStream in = filePage.getWebResponse().getContentAsStream();

@@ -178,6 +178,7 @@ public abstract class ToolParser {
     abstract public String getToolName();
 
 	public HtmlPage loadPage(String url) throws FailingHttpStatusCodeException, MalformedURLException, IOException {
+		System.out.println("zz03: " + url);
 		HtmlPage page = getArchiver().getWebClient().getPage(url);
 		return page;
 	}
