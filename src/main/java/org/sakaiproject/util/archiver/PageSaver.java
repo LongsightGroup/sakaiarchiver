@@ -229,14 +229,14 @@ public class PageSaver {
 	               			in = anchor.click().getWebResponse().getContentAsStream();
 	               			out = new FileOutputStream(file);
 	               			long size = IOUtils.copyLarge(in, out);
-	            		    msg("File size: " + size, Archiver.NORMAL);
+	            		    msg("File size: " + size, Archiver.DEBUG);
 	               		} catch ( Exception e ) {
 	               			e.printStackTrace();
 	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
 	               			msg("Could not download file: " + href, Archiver.WARNING);
 	               		} finally {
-		            	    	in.close();
-		            		    out.close();
+		            	    in.close();
+		            		out.close();
 		                }
 	               	}
 	               	else {

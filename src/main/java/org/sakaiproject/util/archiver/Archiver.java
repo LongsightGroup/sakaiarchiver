@@ -196,9 +196,6 @@ public class Archiver {
         PageInfo pInfo = new PageInfo( getHomePage() );
     	setSitePages( new PageTree<PageInfo>( pInfo ) );
         locateTools();
-        msg("******** NOTE:", NORMAL);
-        msg("******** Please ignore any 'javascript.StrictErrorReporter' runtime errors.", NORMAL);
-        msg("******** These are just Javascript code designed to work with older browser that can't be parsed by newer Javascript engines.", NORMAL);
         for( ToolParser tool: getSiteTools()) {
         	tool.parse(this);
         }
@@ -269,6 +266,7 @@ public class Archiver {
         webClient.getOptions().setRedirectEnabled(true);
         webClient.getOptions().setThrowExceptionOnScriptError(false);
         java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit").setLevel(Level.SEVERE);
+        java.util.logging.Logger.getLogger("com.gargoylesoftware.htmlunit.javascript.StrictErrorReporter").setLevel(Level.OFF);
         setWebClient(webClient);
     }
 
