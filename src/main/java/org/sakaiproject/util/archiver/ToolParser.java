@@ -55,7 +55,11 @@ public abstract class ToolParser {
 		setArchiver(archiver);
 		msg("Parsing tool:  " + getToolName(), Archiver.NORMAL);
         init();
-		parse();
+		try {
+			parse();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		fini();
 	}
     /**
