@@ -223,25 +223,21 @@ public class PageSaver {
 	               	file.getParentFile().mkdirs();
 	               	msg("Saving file: " + href + "  localpath=" + file.getAbsolutePath(), Archiver.NORMAL);
 	               	if ( ! Archiver.DEBUG_SKIP_FILES ) {
-	               		Page filePage = null;
+	               		InputStream in = null;
+	               		OutputStream out = null;
 	               		try {
-	               			filePage = anchor.openLinkInNewWindow();
+	               			in = anchor.click().getWebResponse().getContentAsStream();
+	               			out = new FileOutputStream(file);
+	               			long size = IOUtils.copyLarge(in, out);
+	            		    msg("File size: " + size, Archiver.NORMAL);
 	               		} catch ( Exception e ) {
 	               			e.printStackTrace();
 	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
 	               			msg("Could not download file: " + href, Archiver.WARNING);
-	               		}
-	               		if ( filePage != null ) {
-		               	    InputStream in = filePage.getWebResponse().getContentAsStream();
-		            	    OutputStream out = new FileOutputStream(file);
-		            	    try {
-		            		    long size = IOUtils.copyLarge(in, out);
-		            		    msg("File size: " + size, Archiver.NORMAL);
-		            	    } finally {
+	               		} finally {
 		            	    	in.close();
 		            		    out.close();
-		            	    }
-	               		}
+		                }
 	               	}
 	               	else {
 	               		msg("DEBUG_SKIP_FILE is true, skipping file download", Archiver.WARNING);
