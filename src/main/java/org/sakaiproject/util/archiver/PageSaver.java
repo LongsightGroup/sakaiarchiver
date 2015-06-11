@@ -221,7 +221,7 @@ public class PageSaver {
 	               		file = new File(base, localPath);
 	               	}
 	               	file.getParentFile().mkdirs();
-	               	msg("Saving file: " + href + "  localpath=" + file.getAbsolutePath(), Archiver.NORMAL);
+
 	               	if ( ! Archiver.DEBUG_SKIP_FILES ) {
 	               		InputStream in = null;
 	               		OutputStream out = null;
@@ -229,7 +229,7 @@ public class PageSaver {
 	               			in = anchor.click().getWebResponse().getContentAsStream();
 	               			out = new FileOutputStream(file);
 	               			long size = IOUtils.copyLarge(in, out);
-	            		    msg("File size: " + size, Archiver.DEBUG);
+	            		    msg("Saving file: " + href + ";size=" + size +";localpath=" + file.getAbsolutePath(), Archiver.NORMAL);
 	               		} catch ( Exception e ) {
 	               			e.printStackTrace();
 	               		    localPath = "fileNotFound.htm?file=" + URLEncoder.encode(href, "UTF-8");
